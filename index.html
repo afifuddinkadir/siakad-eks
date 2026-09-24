@@ -72,14 +72,13 @@
         }
 
         .login-box {
-            background: white; padding: 2rem; border-radius: 12px;
+            background: white; padding: 2.2rem 2rem; border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 420px; text-align: center;
         }
 
         .login-box .logo-login { max-width: 95px; height: auto; margin-bottom: 0.8rem; }
         .login-box .institution-tag { font-size: 0.75rem; color: #1a7a60; font-weight: bold; text-transform: uppercase; margin-bottom: 0.2rem; }
-        .login-box h2 { margin-bottom: 0.4rem; color: #2c3e50; font-size: 1.2rem; }
-        .login-box p { font-size: 0.8rem; color: #64748b; margin-bottom: 1.2rem; }
+        .login-box h2 { margin-bottom: 1.2rem; color: #2c3e50; font-size: 1.25rem; }
         .error-message { color: #ef4444; font-size: 0.85rem; margin-bottom: 1rem; display: none; }
 
         /* App Layout */
@@ -197,14 +196,13 @@
 </head>
 <body>
 
-    <!-- Layar Login -->
+    <!-- Layar Login (Kredensial Teks Dihapus) -->
     <div id="loginOverlay">
         <div class="login-box">
             <img src="Logo IAI.jpg" alt="Logo IAI As Siddiq" class="logo-login">
             <div class="institution-tag">Institut Agama Islam (IAI) As-Siddiq Kie Raha Maluku Utara</div>
             <div style="font-size: 0.75rem; color: #059669; font-weight: bold; margin-bottom: 0.5rem;">SISTEM INFORMASI DOSEN, AKADEMIK, KRS & PENILAIAN</div>
             <h2>Sistem Akademia & Presensi</h2>
-            <p>Admin Kaprodi (<strong>admin/admin123</strong>)<br>Dosen (<strong>Username / NIDN</strong>) | Mahasiswa (<strong>NIM</strong>)</p>
             
             <div id="loginError" class="error-message">Username / NIM atau password salah!</div>
 
@@ -749,7 +747,7 @@
                         <div class="info-item"><span>SKS:</span> 3 SKS</div>
                         <div class="info-item"><span>Dosen Pengampu:</span> Katarudin Tiakoly, M.E</div>
                         <div class="info-item"><span>Semester / TA:</span> II (Genap) / 2025/2026</div>
-                        <div class="info-item"><span>Program Studi:</span> Ekonomi Syariah (EKS)</div>
+                        <div class="info-item"><span>Program Studi:</span> Ekonomi SyARIAH (EKS)</div>
                     </div>
                     <div class="download-group lecturer-or-admin">
                         <button class="btn-download btn-excel" onclick="exportAbsenExcel()">Unduh Excel (.xlsx)</button>
@@ -966,7 +964,6 @@
         // -------------------------------------------------------------
         let deferredPrompt = null;
 
-        // 1. Generate Manifest.json secara dinamis
         const manifestData = {
             "name": "Sistem Akademik & Penilaian IAI As-Siddiq",
             "short_name": "Siakad IAI",
@@ -984,7 +981,6 @@
         const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
         document.getElementById('manifestPlaceholder').setAttribute('href', URL.createObjectURL(manifestBlob));
 
-        // 2. Register Service Worker untuk dukungan Offline & Instalasi
         if ('serviceWorker' in navigator) {
             const swCode = `
                 const CACHE_NAME = 'siakad-pwa-v1';
@@ -1010,7 +1006,6 @@
             });
         }
 
-        // 3. Tangkap Event Prompt Instalasi App (Chrome, Edge, Android)
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
