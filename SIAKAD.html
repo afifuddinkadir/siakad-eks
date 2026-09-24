@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sistem Akademik, Presensi, Jurnal, KRS & Penilaian - IAI As Siddiq Kie Raha</title>
+    
+    <!-- PWA Primary Meta Tags -->
+    <meta name="theme-color" content="#1e293b">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Siakad IAI">
+    <link rel="apple-touch-icon" href="Logo IAI.jpg">
+
+    <!-- Web App Manifest Injected via Blob Data URL -->
+    <link id="manifestPlaceholder" rel="manifest">
+
+    <!-- Library Canvas Tanda Tangan, Export & QR Code Generator -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.net/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.net/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.net/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #eef2f5;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Kop Lembaga */
+        .kop-lembaga {
+            background: white;
+            padding: 1.2rem;
+            text-align: center;
+            border-bottom: 3px double #1a7a60;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .kop-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .kop-logo { max-height: 70px; width: auto; }
+        .kop-text h2 { font-size: 1.15rem; color: #1a7a60; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+        .kop-text h3 { font-size: 1rem; color: #2c3e50; text-transform: uppercase; font-weight: 700; margin-top: 2px; }
+        .kop-text p { font-size: 0.75rem; color: #555; margin-top: 3px; }
+
+        /* Login Overlay */
+        #loginOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(30, 41, 59, 0.95);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000; padding: 1rem;
+        }
+
+        .login-box {
+            background: white; padding: 2rem; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 420px; text-align: center;
+        }
+
+        .login-box .logo-login { max-width: 95px; height: auto; margin-bottom: 0.8rem; }
+        .login-box .institution-tag { font-size: 0.75rem; color: #1a7a60; font-weight: bold; text-transform: uppercase; margin-bottom: 0.2rem; }
+        .login-box h2 { margin-bottom: 0.4rem; color: #2c3e50; font-size: 1.2rem; }
+        .login-box p { font-size: 0.8rem; color: #64748b; margin-bottom: 1.2rem; }
+        .error-message { color: #ef4444; font-size: 0.85rem; margin-bottom: 1rem; display: none; }
+
+        /* App Layout */
+        #appContent { display: none; flex-direction: column; min-height: 100vh; }
+        .app-bar { background: #1e293b; color: white; padding: 0.8rem 1.2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+        .user-info { font-size: 0.85rem; }
+        .bar-actions { display: flex; align-items: center; gap: 0.5rem; }
+
+        .btn-install { background-color: #10b981; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; display: none; align-items: center; gap: 0.3rem; }
+        .btn-install:hover { background-color: #059669; }
+
+        .btn-share { background-color: #2563eb; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 0.3rem; }
+        .btn-share:hover { background-color: #1d4ed8; }
+
+        .nav-tabs { background: #334155; display: flex; padding: 0 0.5rem; gap: 0.2rem; overflow-x: auto; white-space: nowrap; }
+        .tab-btn { background: transparent; color: #cbd5e1; border: none; padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; font-size: 0.85rem; border-bottom: 3px solid transparent; transition: all 0.2s; flex-shrink: 0; }
+        .tab-btn:hover, .tab-btn.active { background: #1e293b; color: white; border-bottom-color: #10b981; }
+
+        .container { width: 100%; max-width: 1250px; margin: 1.2rem auto; padding: 0 0.8rem; flex: 1; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 1.2rem; }
+        .card h2 { margin-bottom: 1rem; color: #1e293b; font-size: 1.15rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; }
+
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1.2rem; font-size: 0.88rem; }
+        .info-item span { font-weight: 600; color: #475569; }
+
+        .form-group { margin-bottom: 1rem; text-align: left; }
+        label { display: block; margin-bottom: 0.35rem; font-weight: 600; font-size: 0.85rem; color: #334155; }
+        input, select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; }
+        input[readonly] { background-color: #f1f5f9; }
+
+        .signature-container { border: 2px dashed #cbd5e1; border-radius: 6px; background: #fafafa; position: relative; margin-top: 0.4rem; touch-action: none; }
+        canvas { width: 100%; height: 160px; display: block; }
+
+        .btn { background-color: #10b981; color: white; border: none; padding: 0.85rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1rem; transition: background 0.2s; }
+        .btn:hover { background-color: #059669; }
+
+        .download-group { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; justify-content: flex-end; }
+        .btn-download { padding: 0.5rem 1rem; border: none; border-radius: 5px; font-weight: bold; font-size: 0.82rem; cursor: pointer; color: white; display: flex; align-items: center; gap: 0.3rem; }
+        .btn-excel { background-color: #16a34a; }
+        .btn-excel:hover { background-color: #15803d; }
+        .btn-pdf { background-color: #dc2626; }
+        .btn-pdf:hover { background-color: #b91c1c; }
+        .btn-word { background-color: #2563eb; }
+        .btn-word:hover { background-color: #1d4ed8; }
+
+        .btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
+        .btn-danger { background-color: #ef4444; padding: 0.4rem 0.6rem; font-size: 0.75rem; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-clear-sig { background: #64748b; color: white; border: none; padding: 0.4rem 0.8rem; font-size: 0.75rem; border-radius: 4px; cursor: pointer; margin-top: 0.4rem; }
+
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 0.8rem; min-width: 800px; }
+        th, td { text-align: center; padding: 0.6rem; border: 1px solid #cbd5e1; font-size: 0.82rem; vertical-align: middle; }
+        th { background-color: #f1f5f9; color: #1e293b; font-weight: 700; }
+        td.text-left { text-align: left; }
+
+        .grade-input { width: 60px; padding: 5px; text-align: center; border: 1px solid #94a3b8; border-radius: 4px; font-weight: bold; }
+
+        .badge-grade { padding: 0.25rem 0.6rem; border-radius: 4px; font-weight: bold; font-size: 0.85rem; color: white; display: inline-block; }
+        .grade-A { background-color: #16a34a; }
+        .grade-B { background-color: #2563eb; }
+        .grade-C { background-color: #d97706; }
+        .grade-D { background-color: #ea580c; }
+        .grade-E { background-color: #dc2626; }
+
+        .badge { padding: 0.2rem 0.4rem; border-radius: 4px; color: white; font-weight: bold; font-size: 0.75rem; cursor: pointer; }
+        .badge-Hadir { background-color: #10b981; }
+        .badge-Izin { background-color: #f59e0b; }
+        .badge-Sakit { background-color: #0284c7; }
+        .badge-Alpha { background-color: #ef4444; }
+
+        .badge-mk { padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+        .badge-inti { background-color: #dcfce7; color: #15803d; }
+        .badge-institusi { background-color: #e0f2fe; color: #0369a1; }
+        .badge-pilihan { background-color: #fef3c7; color: #b45309; }
+        .badge-jabatan { background-color: #f3e8ff; color: #7e22ce; font-weight: bold; padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.75rem; }
+
+        .img-ttd { height: 32px; background: white; border-radius: 3px; }
+        .pengesahan-grid { display: grid; grid-template-columns: 1fr 1fr; margin-top: 2rem; text-align: center; font-size: 0.88rem; gap: 2rem; }
+
+        .krs-document { background: white; border: 1px solid #cbd5e1; padding: 1.5rem; border-radius: 6px; margin-top: 1rem; }
+        .krs-header-title { text-align: center; margin-bottom: 1.2rem; }
+        .krs-header-title h3 { font-size: 1.1rem; color: #1e293b; text-transform: uppercase; margin-bottom: 2px; }
+        .krs-header-title h4 { font-size: 1rem; color: #1a7a60; text-transform: uppercase; margin-bottom: 2px; }
+        .krs-header-title h5 { font-size: 0.95rem; color: #475569; text-transform: uppercase; }
+
+        .krs-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; font-size: 0.85rem; margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0; }
+        .krs-meta-item { display: flex; margin-bottom: 0.3rem; }
+        .krs-meta-item .label { font-weight: 600; width: 220px; color: #334155; }
+        .krs-meta-item .val { font-weight: bold; color: #0f172a; flex: 1; }
+
+        .krs-columns-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .krs-table-block h4 { background: #1e293b; color: white; padding: 0.4rem 0.8rem; font-size: 0.85rem; text-align: center; border-radius: 4px 4px 0 0; }
+        .krs-table { width: 100%; min-width: 100%; border-collapse: collapse; }
+        .krs-table th, .krs-table td { font-size: 0.78rem; padding: 0.4rem; border: 1px solid #cbd5e1; }
+        .krs-table th { background-color: #f1f5f9; }
+
+        .krs-sign-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 2rem; text-align: center; font-size: 0.82rem; gap: 1rem; }
+
+        footer { text-align: center; padding: 0.8rem; background-color: #e2e8f0; font-size: 0.78rem; color: #64748b; margin-top: auto; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1100; }
+        .modal-box { background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 420px; text-align: center; }
+        #qrcodeContainer { display: flex; justify-content: center; margin: 1rem 0; }
+        #qrcodeContainer img { border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 8px; }
+
+        @media (max-width: 900px) {
+            .krs-columns-wrapper { grid-template-columns: 1fr; }
+            .krs-meta-grid { grid-template-columns: 1fr; }
+            .krs-sign-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Layar Login -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <img src="Logo IAI.jpg" alt="Logo IAI As Siddiq" class="logo-login">
+            <div class="institution-tag">Institut Agama Islam (IAI) As-Siddiq Kie Raha Maluku Utara</div>
+            <div style="font-size: 0.75rem; color: #059669; font-weight: bold; margin-bottom: 0.5rem;">SISTEM INFORMASI DOSEN, AKADEMIK, KRS & PENILAIAN</div>
+            <h2>Sistem Akademia & Presensi</h2>
+            <p>Admin Kaprodi (<strong>admin/admin123</strong>)<br>Dosen (<strong>Username / NIDN</strong>) | Mahasiswa (<strong>NIM</strong>)</p>
+            
+            <div id="loginError" class="error-message">Username / NIM atau password salah!</div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginUser">NIM / Username / NIDN</label>
+                    <input type="text" id="loginUser" placeholder="Masukkan Username / NIDN / NIM" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPass">Password</label>
+                    <input type="password" id="loginPass" placeholder="Masukkan Password" required>
+                </div>
+                <button type="submit" class="btn">Masuk Sistem</button>
+            </form>
+            
+            <button type="button" class="btn-share" style="width:100%; margin-top:0.8rem; justify-content:center; background:#475569;" onclick="openShareModal()">
+                🔗 Bagikan Tautan Aplikasi
+            </button>
+        </div>
+    </div>
+
+    <!-- Aplikasi Utama -->
+    <div id="appContent">
+        <div class="kop-lembaga">
+            <div class="kop-container">
+                <img src="Logo IAI.jpg" alt="Logo IAI As Siddiq" class="kop-logo">
+                <div class="kop-text">
+                    <h2>INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA</h2>
+                    <h3>PROGRAM STUDI EKONOMI SYARIAH</h3>
+                    <p>Jl. Kampus ISDIK Kie Raha Kel. Jambula-Sasa Kec. Kota Ternate Selatan Kode Pos 97751</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="app-bar">
+            <div class="user-info">
+                Pengguna: <strong id="loggedInUserDisplay">-</strong> (<span id="userRoleDisplay">-</span>)
+            </div>
+            <div class="bar-actions">
+                <button id="btnInstallApp" class="btn-install" onclick="installPWA()">📲 Instal Aplikasi</button>
+                <button class="btn-share" onclick="openShareModal()">🔗 Bagikan Link</button>
+                <button class="btn-logout" onclick="logout()">Keluar</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="tab-btn active" id="tabBtnKrsGanjil" onclick="switchTab('krsGanjil')">KRS Semester Ganjil</button>
+            <button class="tab-btn" id="tabBtnKrsGenap" onclick="switchTab('krsGenap')">KRS Semester Genap</button>
+            <button class="tab-btn lecturer-or-admin" id="tabBtnNilai" onclick="switchTab('nilai')">Penilaian Otomatis Dosen</button>
+            <button class="tab-btn" id="tabBtnDosen" onclick="switchTab('dosenMenu')">Daftar Dosen</button>
+            <button class="tab-btn" id="tabBtnMatkul" onclick="switchTab('matkul')">Daftar Mata Kuliah</button>
+            <button class="tab-btn" id="tabBtnAbsen" onclick="switchTab('absen')">Form Presensi Mahasiswa</button>
+            <button class="tab-btn" id="tabBtnData" onclick="switchTab('data')">Rekap Absensi (Matkul)</button>
+            <button class="tab-btn lecturer-or-admin" id="tabBtnJurnal" onclick="switchTab('jurnal')">Jurnal Mengajar Dosen</button>
+            <button class="tab-btn admin-only" id="tabBtnKelola" onclick="switchTab('kelola')">Kelola Akun Sistem</button>
+        </div>
+
+        <div class="container">
+            <!-- TAB: PENILAIAN OTOMATIS DOSEN -->
+            <div id="tabNilai" class="tab-content lecturer-or-admin">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                        <h2>Input Penilaian Otomatis Perkuliahan Mahasiswa</h2>
+                        <div class="download-group" style="margin-bottom:0;">
+                            <button class="btn-download btn-excel" onclick="exportNilaiExcel()">Unduh Excel (.xlsx)</button>
+                            <button class="btn-download btn-pdf" onclick="exportNilaiPDF()">Unduh PDF (.pdf)</button>
+                            <button class="btn-download btn-word" onclick="exportNilaiWord()">Unduh Word (.doc)</button>
+                        </div>
+                    </div>
+
+                    <div class="krs-meta-grid" style="margin-bottom:1rem;">
+                        <div>
+                            <div class="krs-meta-item">
+                                <span class="label">Pilih Mata Kuliah:</span>
+                                <span class="val">
+                                    <select id="nilaiSelectMatkul" onchange="renderNilaiTable()" style="padding:4px; font-weight:bold;">
+                                        <option value="Tafsir Hadist Tematik Ekonomi Syariah">Tafsir Hadist Tematik Ekonomi Syariah (Sem I)</option>
+                                        <option value="Ekonomi Mikro Syariah">Ekonomi Mikro Syariah (Sem III)</option>
+                                        <option value="Produk dan Jasa Perbankan Syariah">Produk dan Jasa Perbankan Syariah (Sem III)</option>
+                                    </select>
+                                </span>
+                            </div>
+                            <div class="krs-meta-item"><span class="label">Semester / TA:</span><span class="val" id="nilaiMetaSemester">I (Ganjil) / 2025/2026</span></div>
+                            <div class="krs-meta-item"><span class="label">SKS / Program Studi:</span><span class="val" id="nilaiMetaSksProdi">3 SKS / Ekonomi Syariah</span></div>
+                        </div>
+                        <div>
+                            <div class="krs-meta-item"><span class="label">Dosen Pengampu:</span><span class="val" id="nilaiMetaDosen">Afifuddin Kadir, S.EI.,M.E</span></div>
+                            <div class="krs-meta-item"><span class="label">NIDN Dosen:</span><span class="val" id="nilaiMetaNidn">2104079103</span></div>
+                            <div class="krs-meta-item"><span class="label">Bobot Penilaian:</span><span class="val" style="color:#0284c7;">Hadir (10%), Tugas (30%), UTS (30%), UAS (30%)</span></div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 0.8rem; background: #e0f2fe; padding: 0.6rem 1rem; border-radius: 6px; font-size: 0.83rem; color: #0369a1;">
+                        💡 <strong>Petunjuk Dosen:</strong> Cukup masukkan angka pada kolom Kehadiran, Tugas, UTS, dan UAS. <strong>Rekap Nilai Akhir</strong> dan <strong>Nilai Huruf (A/B/C/D/E)</strong> akan terhitung secara otomatis!
+                    </div>
+
+                    <div class="table-responsive" id="nilaiDocBlock">
+                        <table id="nilaiTable">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" style="width: 40px;">NO</th>
+                                    <th rowspan="2" style="width: 110px;">NIM</th>
+                                    <th rowspan="2" style="width: 220px; text-align:left;">NAMA MAHASISWA</th>
+                                    <th colspan="4">RUBRIK PENILAIAN</th>
+                                    <th rowspan="2" style="width: 100px;">REKAP NILAI AKHIR</th>
+                                    <th rowspan="2" style="width: 90px;">NILAI HURUF</th>
+                                </tr>
+                                <tr>
+                                    <th style="width: 80px;">KEHADIRAN<br>(10%)</th>
+                                    <th style="width: 80px;">TUGAS<br>(30%)</th>
+                                    <th style="width: 80px;">UTS<br>(30%)</th>
+                                    <th style="width: 80px;">UAS<br>(30%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="nilaiTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="pengesahan-grid">
+                        <div></div>
+                        <div>
+                            Ternate, 11 Februari 2026<br>
+                            Dosen Pengampuh Mata Kuliah,<br><br><br><br>
+                            <strong id="nilaiSignDosen">Afifuddin Kadir, S.EI.,M.E</strong><br>
+                            <span id="nilaiSignNidn">NIDN. 2104079103</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: KRS SEMESTER GANJIL -->
+            <div id="tabKrsGanjil" class="tab-content active">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                        <h2>Kartu Rencana Studi (KRS) - Semester Ganjil 2026/2027</h2>
+                        <div class="download-group" style="margin-bottom:0;">
+                            <button class="btn-download btn-excel" onclick="exportKRSExcel('ganjil')">Unduh Excel (.xlsx)</button>
+                            <button class="btn-download btn-pdf" onclick="exportKRSPDF('ganjil')">Unduh PDF (.pdf)</button>
+                            <button class="btn-download btn-word" onclick="exportKRSWord('ganjil')">Unduh Word (.doc)</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1rem;" class="lecturer-or-admin">
+                        <label for="selectStudentKrsGanjil" style="font-weight:bold;">Pilih Mahasiswa untuk Pengisian KRS:</label>
+                        <select id="selectStudentKrsGanjil" onchange="changeKrsStudent('ganjil')"></select>
+                    </div>
+
+                    <div class="krs-document" id="krsDocGanjil">
+                        <div class="krs-header-title">
+                            <h3>INSTITUT AGAMA ISLAM AS-SIDDIQ (IAI) KIE RAHA MALUKU UTARA</h3>
+                            <h4>KARTU RENCANA STUDI (KRS)</h4>
+                            <h5>PROGRAM STUDI EKONOMI SYARIAH - SEMESTER GANJIL 2026/2027</h5>
+                        </div>
+
+                        <div class="krs-meta-grid">
+                            <div>
+                                <div class="krs-meta-item"><span class="label">A. Nama Mahasiswa</span><span class="val" id="krsNamaGanjil">-</span></div>
+                                <div class="krs-meta-item"><span class="label">B. N P M</span><span class="val" id="krsNimGanjil">-</span></div>
+                            </div>
+                            <div>
+                                <div class="krs-meta-item"><span class="label">C. IP Komulatif Semester Lalu</span><span class="val"><input type="text" id="krsIpkGanjil" value="3.50" style="width:70px; padding:2px 5px; text-align:center;"></span></div>
+                                <div class="krs-meta-item"><span class="label">D. SKS Direncanakan Semester Ini</span><span class="val" id="krsTotalSksGanjil">0 SKS</span></div>
+                                <div class="krs-meta-item"><span class="label">E. SKS Dicapai s/d Semester Lalu</span><span class="val"><input type="text" id="krsSksLaluGanjil" value="110" style="width:70px; padding:2px 5px; text-align:center;"></span></div>
+                            </div>
+                        </div>
+
+                        <p style="font-size:0.78rem; font-style:italic; margin-bottom:0.8rem; color:#475569;">
+                            * Matakuliah yang akan dikontrak diberi tanda centang (X) pada kotak didepan nama matakuliah di bawah ini:
+                        </p>
+
+                        <div class="krs-columns-wrapper">
+                            <div>
+                                <div class="krs-table-block" style="margin-bottom: 1rem;">
+                                    <h4>SEMESTER I</h4>
+                                    <table class="krs-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;">[X]</th>
+                                                <th>NAMA MATA KULIAH</th>
+                                                <th style="width:50px;">B/UP</th>
+                                                <th style="width:80px;">KODE</th>
+                                                <th style="width:40px;">SKS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbodyKrsSem1"></tbody>
+                                    </table>
+                                </div>
+
+                                <div class="krs-table-block">
+                                    <h4>SEMESTER V</h4>
+                                    <table class="krs-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;">[X]</th>
+                                                <th>NAMA MATA KULIAH</th>
+                                                <th style="width:50px;">B/UP</th>
+                                                <th style="width:80px;">KODE</th>
+                                                <th style="width:40px;">SKS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbodyKrsSem5"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="krs-table-block" style="margin-bottom: 1rem;">
+                                    <h4>SEMESTER III</h4>
+                                    <table class="krs-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;">[X]</th>
+                                                <th>NAMA MATA KULIAH</th>
+                                                <th style="width:50px;">B/UP</th>
+                                                <th style="width:80px;">KODE</th>
+                                                <th style="width:40px;">SKS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbodyKrsSem3"></tbody>
+                                    </table>
+                                </div>
+
+                                <div class="krs-table-block">
+                                    <h4>SEMESTER VII</h4>
+                                    <table class="krs-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;">[X]</th>
+                                                <th>NAMA MATA KULIAH</th>
+                                                <th style="width:50px;">B/UP</th>
+                                                <th style="width:80px;">KODE</th>
+                                                <th style="width:40px;">SKS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbodyKrsSem7"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="krs-sign-grid">
+                            <div>
+                                Ketua Prodi,<br><br><br><br>
+                                <strong>Afifuddin Kadir, M.E</strong><br>
+                                NIDN. 2104079103
+                            </div>
+                            <div>
+                                Penasehat Akademik,<br><br><br><br>
+                                <strong id="krsDosenPaGanjil">Juma Luange, M.Si</strong><br>
+                                <span id="krsNidnPaGanjil">NIDN. 2101107502</span>
+                            </div>
+                            <div>
+                                Ternate, 11 Februari 2026<br>
+                                Mahasiswa,<br><br><br><br>
+                                <strong id="krsSignNamaGanjil">-</strong><br>
+                                <span id="krsSignNimGanjil">NPM. -</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: KRS SEMESTER GENAP -->
+            <div id="tabKrsGenap" class="tab-content">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                        <h2>Kartu Rencana Studi (KRS) - Semester Genap 2025/2026</h2>
+                        <div class="download-group" style="margin-bottom:0;">
+                            <button class="btn-download btn-excel" onclick="exportKRSExcel('genap')">Unduh Excel (.xlsx)</button>
+                            <button class="btn-download btn-pdf" onclick="exportKRSPDF('genap')">Unduh PDF (.pdf)</button>
+                            <button class="btn-download btn-word" onclick="exportKRSWord('genap')">Unduh Word (.doc)</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1rem;" class="lecturer-or-admin">
+                        <label for="selectStudentKrsGenap" style="font-weight:bold;">Pilih Mahasiswa untuk Pengisian KRS:</label>
+                        <select id="selectStudentKrsGenap" onchange="changeKrsStudent('genap')"></select>
+                    </div>
+
+                    <div class="krs-document" id="krsDocGenap">
+                        <div class="krs-header-title">
+                            <h3>INSTITUT AGAMA ISLAM AS-SIDDIQ (IAI) KIE RAHA MALUKU UTARA</h3>
+                            <h4>KARTU RENCANA STUDI (KRS)</h4>
+                            <h5>PROGRAM STUDI EKONOMI SYARIAH - SEMESTER GENAP 2025/2026</h5>
+                        </div>
+
+                        <div class="krs-meta-grid">
+                            <div>
+                                <div class="krs-meta-item"><span class="label">A. Nama Mahasiswa</span><span class="val" id="krsNamaGenap">-</span></div>
+                                <div class="krs-meta-item"><span class="label">B. N P M</span><span class="val" id="krsNimGenap">-</span></div>
+                            </div>
+                            <div>
+                                <div class="krs-meta-item"><span class="label">C. IP Komulatif Semester Lalu</span><span class="val"><input type="text" id="krsIpkGenap" value="3.50" style="width:70px; padding:2px 5px; text-align:center;"></span></div>
+                                <div class="krs-meta-item"><span class="label">D. SKS Direncanakan Semester Ini</span><span class="val" id="krsTotalSksGenap">0 SKS</span></div>
+                                <div class="krs-meta-item"><span class="label">E. SKS Dicapai s/d Semester Lalu</span><span class="val"><input type="text" id="krsSksLaluGenap" value="110" style="width:70px; padding:2px 5px; text-align:center;"></span></div>
+                            </div>
+                        </div>
+
+                        <p style="font-size:0.78rem; font-style:italic; margin-bottom:0.8rem; color:#475569;">
+                            * Matakuliah yang akan dikontrak diberi tanda centang (X) pada kotak didepan nama matakuliah di bawah ini:
+                        </p>
+
+                        <div class="krs-columns-wrapper">
+                            <div>
+                                <div class="krs-table-block" style="margin-bottom: 1rem;">
+                                    <h4>SEMESTER II</h4>
+                                    <table class="krs-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;">[X]</th>
+                                                <th>NAMA MATA KULIAH</th>
+                                                <th style="width:50px;">B/UP</th>
+                                                <th style="width:80px;">KODE</th>
+                                                <th style="width:40px;">SKS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbodyKrsSem2"></tbody>
+                                    </table>
+                                </div>
+
+                                <div class="krs-table-block">
+                                    <h4>SEMESTER VI</h4>
+                                    <table class="krs-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;">[X]</th>
+                                                <th>NAMA MATA KULIAH</th>
+                                                <th style="width:50px;">B/UP</th>
+                                                <th style="width:80px;">KODE</th>
+                                                <th style="width:40px;">SKS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbodyKrsSem6"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="krs-table-block" style="margin-bottom: 1rem;">
+                                    <h4>SEMESTER IV</h4>
+                                    <table class="krs-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;">[X]</th>
+                                                <th>NAMA MATA KULIAH</th>
+                                                <th style="width:50px;">B/UP</th>
+                                                <th style="width:80px;">KODE</th>
+                                                <th style="width:40px;">SKS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbodyKrsSem4"></tbody>
+                                    </table>
+                                </div>
+
+                                <div class="krs-table-block">
+                                    <h4>SEMESTER VIII</h4>
+                                    <table class="krs-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;">[X]</th>
+                                                <th>NAMA MATA KULIAH</th>
+                                                <th style="width:50px;">B/UP</th>
+                                                <th style="width:80px;">KODE</th>
+                                                <th style="width:40px;">SKS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbodyKrsSem8"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="krs-sign-grid">
+                            <div>
+                                Ketua Prodi,<br><br><br><br>
+                                <strong>Afifuddin Kadir, M.E</strong><br>
+                                NIDN. 2104079103
+                            </div>
+                            <div>
+                                Penasehat Akademik,<br><br><br><br>
+                                <strong id="krsDosenPaGenap">Juma Luange, M.Si</strong><br>
+                                <span id="krsNidnPaGenap">NIDN. 2101107502</span>
+                            </div>
+                            <div>
+                                Ternate, 11 Februari 2026<br>
+                                Mahasiswa,<br><br><br><br>
+                                <strong id="krsSignNamaGenap">-</strong><br>
+                                <span id="krsSignNimGenap">NPM. -</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: DAFTAR DOSEN -->
+            <div id="tabDosenMenu" class="tab-content">
+                <div class="card">
+                    <h2>Daftar Dosen Institut Agama Islam (IAI) As-Siddiq Kie Raha</h2>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.2rem;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label for="filterProdiDosen">Filter Program Studi:</label>
+                            <select id="filterProdiDosen" onchange="renderDosenListTable()">
+                                <option value="ALL">Semua Program Studi</option>
+                                <option value="Ekonomi Syariah">Ekonomi Syariah</option>
+                                <option value="Bimbingan Konseling Islam">Bimbingan Konseling Islam</option>
+                                <option value="Sejarah Peradaban Islam">Sejarah Peradaban Islam</option>
+                                <option value="Perbankan Syariah">Perbankan Syariah</option>
+                            </select>
+                        </div>
+                        <div style="flex: 2; min-width: 250px;">
+                            <label for="searchDosenInput">Cari Nama Dosen / NIDN:</label>
+                            <input type="text" id="searchDosenInput" placeholder="Ketik nama dosen atau NIDN..." onkeyup="renderDosenListTable()">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">NO</th>
+                                    <th style="text-align: left;">NAMA DOSEN</th>
+                                    <th style="width: 130px;">NIDN</th>
+                                    <th style="width: 160px;">JABATAN FUNGSIONAL</th>
+                                    <th style="text-align: left; width: 220px;">PROGRAM STUDI</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dosenListTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: DAFTAR MATA KULIAH -->
+            <div id="tabMatkul" class="tab-content">
+                <div class="card">
+                    <h2>Kurikulum Mata Kuliah Program Studi Ekonomi Syariah</h2>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.2rem;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label for="filterSemester">Filter Semester:</label>
+                            <select id="filterSemester" onchange="renderKurikulumTable()">
+                                <option value="ALL">Semua Semester (Semester I - VIII)</option>
+                                <option value="1">Semester I</option>
+                                <option value="2">Semester II</option>
+                                <option value="3">Semester III</option>
+                                <option value="4">Semester IV</option>
+                                <option value="5">Semester V</option>
+                                <option value="6">Semester VI</option>
+                                <option value="7">Semester VII</option>
+                                <option value="8">Semester VIII</option>
+                            </select>
+                        </div>
+                        <div style="flex: 2; min-width: 250px;">
+                            <label for="searchMatkulInput">Cari Mata Kuliah / Kode MK:</label>
+                            <input type="text" id="searchMatkulInput" placeholder="Ketik nama mata kuliah atau kode MK..." onkeyup="renderKurikulumTable()">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">NO</th>
+                                    <th style="width: 100px;">SEMESTER</th>
+                                    <th style="width: 120px;">KODE MK</th>
+                                    <th style="text-align: left;">MATA KULIAH</th>
+                                    <th style="width: 70px;">SKS</th>
+                                    <th style="width: 130px;">KATEGORI MK</th>
+                                    <th style="width: 110px;">PEMBELAJARAN</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kurikulumTableBody"></tbody>
+                            <tfoot id="kurikulumTableFoot"></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: FORM ABSENSI -->
+            <div id="tabAbsen" class="tab-content">
+                <div class="card" style="max-width: 600px; margin: 0 auto;">
+                    <h2>Form Presensi Mandiri Mahasiswa</h2>
+                    <form id="attendanceForm">
+                        <div class="form-group">
+                            <label for="npm">NPM / NIM</label>
+                            <input type="text" id="npm" readonly required>
+                        </div>
+                        <div class="form-group">
+                            <label for="nama">Nama Mahasiswa</label>
+                            <input type="text" id="nama" readonly required>
+                        </div>
+                        <div class="form-group">
+                            <label for="matkulSelect">Mata Kuliah</label>
+                            <select id="matkulSelect" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="pertemuanNum">Pertemuan Ke-</label>
+                            <select id="pertemuanNum" required>
+                                <option value="1">Pertemuan 1</option>
+                                <option value="2">Pertemuan 2</option>
+                                <option value="3">Pertemuan 3</option>
+                                <option value="4">Pertemuan 4</option>
+                                <option value="5">Pertemuan 5</option>
+                                <option value="6">Pertemuan 6</option>
+                                <option value="7">Pertemuan 7</option>
+                                <option value="8">Pertemuan 8</option>
+                                <option value="UTS">UTS</option>
+                                <option value="9">Pertemuan 9</option>
+                                <option value="10">Pertemuan 10</option>
+                                <option value="11">Pertemuan 11</option>
+                                <option value="12">Pertemuan 12</option>
+                                <option value="13">Pertemuan 13</option>
+                                <option value="14">Pertemuan 14</option>
+                                <option value="16">Pertemuan 16</option>
+                                <option value="UAS">UAS</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Status Kehadiran</label>
+                            <select id="status" required>
+                                <option value="Hadir">Hadir</option>
+                                <option value="Izin">Izin</option>
+                                <option value="Sakit">Sakit</option>
+                                <option value="Alpha">Alpha</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tanda Tangan Digital Mahasiswa</label>
+                            <div class="signature-container">
+                                <canvas id="signatureCanvas"></canvas>
+                            </div>
+                            <button type="button" class="btn-clear-sig" onclick="clearSignature('mhs')">Bersihkan Tanda Tangan</button>
+                        </div>
+                        <button type="submit" class="btn">Kirim Presensi</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TAB: REKAP ABSENSI -->
+            <div id="tabData" class="tab-content">
+                <div class="card">
+                    <h2>Lembar Absen Mahasiswa (Model Format Resmi)</h2>
+                    <div class="info-grid">
+                        <div class="info-item"><span>Mata Kuliah:</span> Manajemen Operasional Bank Syariah</div>
+                        <div class="info-item"><span>SKS:</span> 3 SKS</div>
+                        <div class="info-item"><span>Dosen Pengampu:</span> Katarudin Tiakoly, M.E</div>
+                        <div class="info-item"><span>Semester / TA:</span> II (Genap) / 2025/2026</div>
+                        <div class="info-item"><span>Program Studi:</span> Ekonomi Syariah (EKS)</div>
+                    </div>
+                    <div class="download-group lecturer-or-admin">
+                        <button class="btn-download btn-excel" onclick="exportAbsenExcel()">Unduh Excel (.xlsx)</button>
+                        <button class="btn-download btn-pdf" onclick="exportAbsenPDF()">Unduh PDF (.pdf)</button>
+                        <button class="btn-download btn-word" onclick="exportAbsenWord()">Unduh Word (.doc)</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="absenTable">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" style="width: 40px;">NO</th>
+                                    <th rowspan="2" style="width: 100px;">NIM</th>
+                                    <th rowspan="2" style="width: 180px;">NAMA MAHASISWA</th>
+                                    <th colspan="18">PERTEMUAN / UJIAN</th>
+                                    <th rowspan="2" style="width: 60px;">KET</th>
+                                </tr>
+                                <tr>
+                                    <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th>
+                                    <th>UTS</th>
+                                    <th>9</th><th>10</th><th>11</th><th>12</th><th>13</th><th>14</th><th>16</th>
+                                    <th>UAS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBodyMatkul"></tbody>
+                        </table>
+                    </div>
+                    <div class="pengesahan-grid lecturer-or-admin">
+                        <div>
+                            Dosen Pengampuh Mata Kuliah,<br><br><br><br>
+                            <strong id="dosenPengampuDisplay">Katarudin Tiakoly, M.E</strong><br>
+                            NIDN. -
+                        </div>
+                        <div>
+                            Ternate, 11 Februari 2026<br>
+                            Kaprodi Ekonomi Syariah,<br><br><br><br>
+                            <strong>Afifuddin Kadir, M.E</strong><br>
+                            NIDN. 2104079103
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: JURNAL DOSEN -->
+            <div id="tabJurnal" class="tab-content lecturer-or-admin">
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1.2rem;">
+                    <div class="card">
+                        <h2>Input Jurnal Mengajar Dosen Mandiri</h2>
+                        <form id="jurnalForm">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem;">
+                                <div class="form-group">
+                                    <label for="jurnalNamaDosen">Nama Dosen Pengampu</label>
+                                    <select id="jurnalNamaDosen" required></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="jurnalMatkul">Mata Kuliah</label>
+                                    <select id="jurnalMatkul" required></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="jurnalThnAkademik">Tahun Akademik / Semester</label>
+                                    <input type="text" id="jurnalThnAkademik" value="2025/2026 (Genap)" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="jurnalPertemuan">Pertemuan Ke- / Hari</label>
+                                    <input type="text" id="jurnalPertemuan" placeholder="Contoh: Pertemuan I / Senin" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="jurnalMateri">Materi / Pokok Bahasan Perkuliahan</label>
+                                <textarea id="jurnalMateri" placeholder="Tuliskan materi/pokok bahasan yang diajarkan..." required></textarea>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem;">
+                                <div class="form-group">
+                                    <label>Paraf Digital Dosen Pengampu</label>
+                                    <div class="signature-container">
+                                        <canvas id="jurnalSigDosenCanvas"></canvas>
+                                    </div>
+                                    <button type="button" class="btn-clear-sig" onclick="clearSignature('dosen')">Bersihkan Paraf</button>
+                                </div>
+                                <div class="form-group">
+                                    <label>Paraf Digital Ketua Tingkat (Komti)</label>
+                                    <div class="signature-container">
+                                        <canvas id="jurnalSigKomtiCanvas"></canvas>
+                                    </div>
+                                    <button type="button" class="btn-clear-sig" onclick="clearSignature('komti')">Bersihkan Paraf</button>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn">Simpan Jurnal Mengajar Dosen</button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <h2>Rekap Jurnal Mengajar Dosen</h2>
+                        <div class="download-group">
+                            <button class="btn-download btn-excel" onclick="exportJurnalExcel()">Unduh Excel (.xlsx)</button>
+                            <button class="btn-download btn-pdf" onclick="exportJurnalPDF()">Unduh PDF (.pdf)</button>
+                            <button class="btn-download btn-word" onclick="exportJurnalWord()">Unduh Word (.doc)</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="jurnalTable">
+                                <thead>
+                                    <tr>
+                                        <th>Mata Kuliah & Dosen</th>
+                                        <th>Pertemuan / Hari</th>
+                                        <th>Materi / Pokok Bahasan</th>
+                                        <th>Paraf Dosen</th>
+                                        <th>Paraf Komti</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="jurnalTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: KELOLA AKUN -->
+            <div id="tabKelola" class="tab-content admin-only">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.2rem;">
+                    <div class="card">
+                        <h2>Buat Akun Dosen Pengampu</h2>
+                        <form id="dosenAccountForm">
+                            <div class="form-group">
+                                <label for="dosenUser">Username Dosen</label>
+                                <input type="text" id="dosenUser" placeholder="Contoh: jumaluange" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dosenNama">Nama Lengkap & Gelar</label>
+                                <input type="text" id="dosenNama" placeholder="Contoh: Juma Luange, M.Si" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dosenNidn">NIDN</label>
+                                <input type="text" id="dosenNidn" placeholder="Contoh: 2101107502" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dosenJabatan">Jabatan Fungsional / Prodi</label>
+                                <input type="text" id="dosenJabatan" placeholder="Lektor / Ekonomi Syariah" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="dosenPass">Password</label>
+                                <input type="password" id="dosenPass" placeholder="Password Dosen" required>
+                            </div>
+                            <button type="submit" class="btn">Tambah Dosen</button>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <h2>Buat Akun Mahasiswa</h2>
+                        <form id="mhsAccountForm">
+                            <div class="form-group">
+                                <label for="mhsNim">NIM Mahasiswa</label>
+                                <input type="text" id="mhsNim" placeholder="Contoh: 2130525001" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="mhsNama">Nama Lengkap Mahasiswa</label>
+                                <input type="text" id="mhsNama" placeholder="Nama Mahasiswa" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="mhsPass">Password</label>
+                                <input type="password" id="mhsPass" placeholder="Password Akun" required>
+                            </div>
+                            <button type="submit" class="btn">Tambah Mahasiswa</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Daftar Pengguna Sistem (Dosen & Mahasiswa)</h2>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tipe Pengguna</th>
+                                    <th>NIM / Username</th>
+                                    <th>Nama Lengkap</th>
+                                    <th>Password</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            &copy; INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA - PROGRAM STUDI EKONOMI SYARIAH
+        </footer>
+    </div>
+
+    <!-- Modal Share Link & QR Code -->
+    <div id="shareModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 style="color:#1e293b; margin-bottom:0.5rem;">Bagikan Tautan Aplikasi</h3>
+            <p style="font-size:0.8rem; color:#64748b;">Gunakan Tautan atau Scan QR Code di bawah untuk mengakses aplikasi ini:</p>
+            <div id="qrcodeContainer"></div>
+            <div class="form-group">
+                <label for="appShareUrl">Tautan Aplikasi:</label>
+                <input type="text" id="appShareUrl" readonly>
+            </div>
+            <div style="display:flex; gap:0.5rem; margin-top:0.8rem;">
+                <button type="button" class="btn" style="flex:1;" onclick="copyAppUrl()">📋 Salin Link</button>
+                <button type="button" class="btn btn-word" style="flex:1;" onclick="nativeShareApp()">📤 Bagikan</button>
+            </div>
+            <button type="button" class="btn-clear-sig" style="width:100%; padding:0.6rem; margin-top:0.8rem;" onclick="closeShareModal()">Tutup</button>
+        </div>
+    </div>
+
+    <!-- SCRIPT UTAMA & SISTEM PWA AUTOMATION -->
+    <script>
+        // -------------------------------------------------------------
+        // SETUP PROGRESSIVE WEB APP (PWA) INSTALASI OTOMATIS
+        // -------------------------------------------------------------
+        let deferredPrompt = null;
+
+        // 1. Generate Manifest.json secara dinamis
+        const manifestData = {
+            "name": "Sistem Akademik & Penilaian IAI As-Siddiq",
+            "short_name": "Siakad IAI",
+            "description": "Aplikasi Sistem Akademik, Presensi, Jurnal Dosen, KRS, dan Penilaian Otomatis",
+            "start_url": "./",
+            "display": "standalone",
+            "background_color": "#eef2f5",
+            "theme_color": "#1e293b",
+            "icons": [
+                { "src": "Logo IAI.jpg", "sizes": "192x192", "type": "image/png" },
+                { "src": "Logo IAI.jpg", "sizes": "512x512", "type": "image/png" }
+            ]
+        };
+
+        const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+        document.getElementById('manifestPlaceholder').setAttribute('href', URL.createObjectURL(manifestBlob));
+
+        // 2. Register Service Worker untuk dukungan Offline & Instalasi
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'siakad-pwa-v1';
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+                self.addEventListener('activate', (e) => {
+                    e.waitUntil(clients.claim());
+                });
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(
+                        fetch(e.request).catch(() => caches.match(e.request))
+                    );
+                });
+            `;
+            const swBlob = new Blob([swCode], { type: 'text/javascript' });
+            const swUrl = URL.createObjectURL(swBlob);
+
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register(swUrl).then(() => {
+                    console.log('PWA Service Worker Registered!');
+                }).catch(err => console.log('SW Register Error:', err));
+            });
+        }
+
+        // 3. Tangkap Event Prompt Instalasi App (Chrome, Edge, Android)
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const btnInstall = document.getElementById('btnInstallApp');
+            if (btnInstall) btnInstall.style.display = 'flex';
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User menerima instalasi PWA');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('btnInstallApp').style.display = 'none';
+                });
+            } else {
+                alert("Gunakan browser Google Chrome / Microsoft Edge di Laptop atau HP Anda, lalu tekan menu 'Tambahkan ke Layar Utama' / 'Install App'.");
+            }
+        }
+
+        // -------------------------------------------------------------
+        // LOGIKA APLIKASI UTAMA
+        // -------------------------------------------------------------
+        let sigPadMhs, sigPadDosen, sigPadKomti;
+        let currentUser = null;
+
+        const sampleGrades = {
+            "Tafsir Hadist Tematik Ekonomi Syariah": [
+                { nim: '2130525005', nama: 'Auliya M. Ibrahim', h: 85, t: 80, uts: 75, uas: 78 },
+                { nim: '2130525008', nama: 'Desta Rahmatuvina B', h: 78, t: 75, uts: 74, uas: 72 },
+                { nim: '2130525009', nama: 'Feni Fataruba', h: 75, t: 68, uts: 65, uas: 66 },
+                { nim: '2130525002', nama: 'Radina Idris', h: 88, t: 85, uts: 84, uas: 86 },
+                { nim: '2130525001', nama: 'Iqra Suratin', h: 90, t: 87, uts: 85, uas: 88 },
+                { nim: '2130525010', nama: 'Fitri Abd. Rasid', h: 70, t: 65, uts: 64, uas: 62 },
+                { nim: '2130525003', nama: 'Rastania Amalia Dewi', h: 89, t: 86, uts: 83, uas: 87 },
+                { nim: '2130525004', nama: 'Wahyuni Imran', h: 87, t: 84, uts: 85, uas: 86 },
+                { nim: '2130525007', nama: 'Wulan Revalina Alitu', h: 80, t: 82, uts: 74, uas: 76 }
+            ],
+            "Ekonomi Mikro Syariah": [
+                { nim: '2130524001', nama: 'HILDA A ADAM', h: 100, t: 92, uts: 90, uas: 88 },
+                { nim: '2130524004', nama: 'M. SAPUTRA LUANGE', h: 94, t: 85, uts: 88, uas: 86 },
+                { nim: '2130524006', nama: 'NURFADILA KADIR', h: 75, t: 79, uts: 76, uas: 80 },
+                { nim: '2130524005', nama: 'RAMONA NGABITO', h: 94, t: 89, uts: 87, uas: 90 },
+                { nim: '2130524002', nama: 'RAGITA CAHYANI M. A', h: 81, t: 80, uts: 78, uas: 82 },
+                { nim: '2130524003', nama: 'WIWIN KIFLI', h: 88, t: 90, uts: 86, uas: 88 }
+            ],
+            "Produk dan Jasa Perbankan Syariah": [
+                { nim: '2130524001', nama: 'HILDA A ADAM', h: 100, t: 92, uts: 90, uas: 88 },
+                { nim: '2130524004', nama: 'M. SAPUTRA LUANGE', h: 95, t: 85, uts: 88, uas: 86 },
+                { nim: '2130524006', nama: 'NURFADILA KADIR', h: 85, t: 79, uts: 76, uas: 80 },
+                { nim: '2130524005', nama: 'RAMONA NGABITO', h: 94, t: 89, uts: 87, uas: 90 },
+                { nim: '2130524002', nama: 'RAGITA CAHYANI M. A', h: 81, t: 80, uts: 78, uas: 82 },
+                { nim: '2130524003', nama: 'WIWIN KIFLI', h: 88, t: 90, uts: 86, uas: 88 }
+            ]
+        };
+
+        const sampleLecturers = [
+            { username: 'jumaluange', nama: 'Juma Luange, M.Si', nidn: '2101107502', jabatan: 'Lektor', prodi: 'Ekonomi Syariah', pass: 'dosen123' },
+            { username: 'afifuddinkadir', nama: 'Afifuddin Kadir, S.EI.,M.E', nidn: '2104079103', jabatan: 'Lektor', prodi: 'Ekonomi Syariah', pass: 'dosen123' },
+            { username: 'katarudintiakoly', nama: 'Katarudin Tiakoly, M.E', nidn: '2101087501', jabatan: 'Asisten Ahli', prodi: 'Ekonomi Syariah', pass: 'dosen123' },
+            { username: 'marfitriyana', nama: 'Marfitriyana Sumarjan, M.E', nidn: '2130039303', jabatan: 'Asisten Ahli', prodi: 'Ekonomi Syariah', pass: 'dosen123' },
+            { username: 'radiaaiyub', nama: 'Radia Aiyub, M.Pd', nidn: '2106118901', jabatan: 'Asisten Ahli', prodi: 'Bimbingan Konseling Islam', pass: 'dosen123' },
+            { username: 'masriaatib', nama: 'Masria Atib, M.Pd', nidn: '2110088504', jabatan: 'Lektor', prodi: 'Bimbingan Konseling Islam', pass: 'dosen123' },
+            { username: 'astriyani', nama: 'Astriyani A Papuangan, M.Pd', nidn: '2111058703', jabatan: 'Lektor', prodi: 'Sejarah Peradaban Islam', pass: 'dosen123' },
+            { username: 'suhardi', nama: 'Suhardi Muhammad, M.Pd', nidn: '2101028405', jabatan: 'Lektor', prodi: 'Sejarah Peradaban Islam', pass: 'dosen123' },
+            { username: 'djonomuin', nama: 'Djono Muin, M.Si', nidn: '2109118805', jabatan: 'Lektor', prodi: 'Sejarah Peradaban Islam', pass: 'dosen123' },
+            { username: 'sahriltorano', nama: 'Sahril. R Torano, M.EK', nidn: '2107068803', jabatan: 'Lektor', prodi: 'Perbankan Syariah', pass: 'dosen123' }
+        ];
+
+        const kurikulumData = [
+            { sem: 1, kode: 'MPK 1112', nama: 'Pendidikan Kewarganegaraan', sks: 2, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 1, kode: 'MPK 1213', nama: 'Bahasa Inggris I', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 1, kode: 'MPK 1313', nama: 'Bahasa Arab', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 1, kode: 'MPK 1412', nama: 'Bahasa Indonesia', sks: 2, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 1, kode: 'MPK 1513', nama: 'Pengantar Ushul Fiqih', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 1, kode: 'EKS 21513', nama: 'Islamic Worldview', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 1, kode: 'MPK 1713', nama: 'Tafsir Hadits Tematik Ekonomi Syariah', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 1, kode: 'MPK 1612', nama: 'Pendidikan Agama', sks: 2, kat: 'MK Institusi', sifat: 'Teori' },
+
+            { sem: 2, kode: 'EKS 2123', nama: 'Pengantar Ekonomi Makro', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 2, kode: 'EKS 2322', nama: 'Pengantar Aplikasi Komputer', sks: 2, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 2, kode: 'EKS 2423', nama: 'Pengantar Ekonomi Mikro', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 2, kode: 'EKS 2523', nama: 'Matematika Ekonomi & Bisnis', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 2, kode: 'EKS 2213', nama: 'Pengantar Akuntansi 1', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 2, kode: 'MPK 1822', nama: 'Fiqih Muamalah 1', sks: 2, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 2, kode: 'EKS 2723', nama: 'Sistem Ekonomi Islam', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 2, kode: 'EKS 2823', nama: 'Manajemen Operasional Bank Syariah', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 2, kode: 'EKS 2922', nama: 'Filsafat Ilmu', sks: 2, kat: 'MK Institusi', sifat: 'Teori' },
+
+            { sem: 3, kode: 'EKS 21033', nama: 'Akuntansi Keuangan Syariah', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 3, kode: 'EKS 21133', nama: 'Produk & Jasa Perbankan Syariah', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 3, kode: 'EKS 21333', nama: 'Ekonomi Makro Syariah', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 3, kode: 'EKS 21433', nama: 'Statistik Ekonomi & Bisnis', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 3, kode: 'MPK 1932', nama: 'Ilmu Alamiah Dasar', sks: 2, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 3, kode: 'EKS 21633', nama: 'Bahasa Inggris 2', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 3, kode: 'EKS 2623', nama: 'Pengantar Akuntansi 2', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 3, kode: 'EKS 21733', nama: 'Ekonomi Mikro Syariah', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+
+            { sem: 4, kode: 'EKS 21843', nama: 'Ekonomi Perdagangan Internasional', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 4, kode: 'EKS 21943', nama: 'Manajemen Sumber Daya Insani', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 4, kode: 'EKS 22042', nama: 'Fiqih Muamalah II (Kontemporer)', sks: 2, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 4, kode: 'EKS 22143', nama: 'Manajemen Pemasaran Bank Syariah', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 4, kode: 'EKS 22243', nama: 'Surat Berharga Syariah', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 4, kode: 'EKS 22343', nama: 'Managemen Keuangan Syariah', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 4, kode: 'EKS 22443', nama: 'Perpajakan', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 4, kode: 'EKS 21232', nama: 'Pengantar Manajemen', sks: 2, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 4, kode: 'EKS 22542', nama: 'Aplikasi Komputer Akuntansi Syariah', sks: 2, kat: 'MK Inti', sifat: 'Praktik' },
+
+            { sem: 5, kode: 'EKS 3153', nama: 'Inovasi Produk Perbankan Syariah', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 5, kode: 'EKS 3253', nama: 'Studi Kelayakan Bisnis', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 5, kode: 'EKS 3352', nama: 'Aspek Hukum dalam Bisnis', sks: 2, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 5, kode: 'EKS 3452', nama: 'Islamic Public Finance', sks: 2, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 5, kode: 'EKS 3552', nama: 'Perekonomian Indonesia', sks: 2, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 5, kode: 'EKS 3652', nama: 'Sistem Informasi Manajemen', sks: 2, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 5, kode: 'EKS 3753', nama: 'Metodologi Penelitian Islam', sks: 3, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 5, kode: 'EKS 3852', nama: 'Kajian Ayat Ekonomi*', sks: 2, kat: 'Pilihan', sifat: 'Teori' },
+            { sem: 5, kode: 'EKS 3952', nama: 'Pegadaian Syariah*', sks: 2, kat: 'Pilihan', sifat: 'Teori' },
+
+            { sem: 6, kode: 'EKS 31062', nama: 'Manajemen Risiko', sks: 2, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 6, kode: 'EKS 31162', nama: 'Sistem Tresury Perbankan Syariah', sks: 2, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 6, kode: 'EKS 31263', nama: 'Analisis Pembiayaan Perbankan Syariah', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 6, kode: 'EKS 31362', nama: 'Lembaga Keuangan Non Bank', sks: 2, kat: 'MK Institusi', sifat: 'Teori' },
+            { sem: 6, kode: 'EKS 31463', nama: 'Analisis Laporan Keuangan', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 6, kode: 'EKS 31562', nama: 'Ekonometrika', sks: 2, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 6, kode: 'EKS 31663', nama: 'Praktek Bisnis Syariah', sks: 3, kat: 'MK Inti', sifat: 'Teori' },
+            { sem: 6, kode: 'EKS 31762', nama: 'Kajian Hadis Ekonomi*', sks: 2, kat: 'Pilihan', sifat: 'Teori' },
+            { sem: 6, kode: 'EKS 31862', nama: 'Kewirausahaan*', sks: 2, kat: 'Pilihan', sifat: 'Teori' },
+
+            { sem: 7, kode: 'EKS 4372', nama: 'Seminar Proposal Skripsi', sks: 2, kat: 'MK Inti', sifat: 'Penyusunan' },
+            { sem: 7, kode: 'EKS 4274', nama: 'Magang', sks: 4, kat: 'MK Inti', sifat: 'Praktik' },
+
+            { sem: 8, kode: 'EKS 4186', nama: 'Skripsi', sks: 6, kat: 'MK Inti', sifat: 'Tugas Akhir' },
+            { sem: 8, kode: 'EKS 5174', nama: 'KKN', sks: 4, kat: 'MK Institusi', sifat: 'Lapangan' }
+        ];
+
+        const sampleStudents = [
+            { nim: '2130525001', nama: 'IQRA SURATIN', pass: '12345' },
+            { nim: '2130525002', nama: 'RADINA IDRIS', pass: '12345' },
+            { nim: '2130525003', nama: 'RASTANIA AMALIA', pass: '12345' },
+            { nim: '2130525004', nama: 'WAHYUNI IMRAN', pass: '12345' },
+            { nim: '2130525005', nama: 'AULIYA M. IBRAHIM', pass: '12345' },
+            { nim: '2130525007', nama: 'WULAN REVALINA ALITU', pass: '12345' },
+            { nim: '2130525008', nama: 'DESTA RAHMATUVINA B', pass: '12345' },
+            { nim: '2130525009', nama: 'FENI FATARUBA', pass: '12345' },
+            { nim: '2130525010', nama: 'FITRI ABD. RASID', pass: '12345' }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!localStorage.getItem('master_students')) {
+                localStorage.setItem('master_students', JSON.stringify(sampleStudents));
+            }
+            if (!localStorage.getItem('master_lecturers')) {
+                localStorage.setItem('master_lecturers', JSON.stringify(sampleLecturers));
+            }
+            if (!localStorage.getItem('master_grades')) {
+                localStorage.setItem('master_grades', JSON.stringify(sampleGrades));
+            }
+
+            initCanvases();
+            populateMatkulDropdowns();
+            populateDosenJurnalDropdown();
+            populateStudentKrsSelects();
+            renderDosenListTable();
+            renderKurikulumTable();
+            renderNilaiTable();
+            checkSession();
+            window.addEventListener("resize", resizeCanvases);
+        });
+
+        function renderNilaiTable() {
+            const matkulKey = document.getElementById('nilaiSelectMatkul').value;
+            const tbody = document.getElementById('nilaiTableBody');
+            tbody.innerHTML = '';
+
+            let allGrades = JSON.parse(localStorage.getItem('master_grades')) || sampleGrades;
+            let items = allGrades[matkulKey] || [];
+
+            if (matkulKey.includes("Tafsir")) {
+                document.getElementById('nilaiMetaSemester').innerText = "I (Ganjil) / 2025/2026";
+            } else {
+                document.getElementById('nilaiMetaSemester').innerText = "III (Ganjil) / 2025/2026";
+            }
+
+            items.forEach((st, idx) => {
+                let rekap = calculateFinalGrade(st.h, st.t, st.uts, st.uas);
+                let letter = getGradeLetter(rekap);
+
+                tbody.innerHTML += `<tr>
+                    <td>${idx + 1}</td>
+                    <td><code>${st.nim}</code></td>
+                    <td class="text-left"><strong>${st.nama}</strong></td>
+                    <td><input type="number" class="grade-input" value="${st.h}" min="0" max="100" oninput="updateRowGrade(this, '${matkulKey}', ${idx}, 'h')"></td>
+                    <td><input type="number" class="grade-input" value="${st.t}" min="0" max="100" oninput="updateRowGrade(this, '${matkulKey}', ${idx}, 't')"></td>
+                    <td><input type="number" class="grade-input" value="${st.uts}" min="0" max="100" oninput="updateRowGrade(this, '${matkulKey}', ${idx}, 'uts')"></td>
+                    <td><input type="number" class="grade-input" value="${st.uas}" min="0" max="100" oninput="updateRowGrade(this, '${matkulKey}', ${idx}, 'uas')"></td>
+                    <td><strong id="rekap_${idx}">${rekap.toFixed(2)}</strong></td>
+                    <td><span id="badge_${idx}" class="badge-grade grade-${letter}">${letter}</span></td>
+                </tr>`;
+            });
+        }
+
+        function calculateFinalGrade(h, t, uts, uas) {
+            return (parseFloat(h || 0) * 0.1) + (parseFloat(t || 0) * 0.3) + (parseFloat(uts || 0) * 0.3) + (parseFloat(uas || 0) * 0.3);
+        }
+
+        function getGradeLetter(score) {
+            if (score >= 80) return 'A';
+            if (score >= 70) return 'B';
+            if (score >= 60) return 'C';
+            if (score >= 50) return 'D';
+            return 'E';
+        }
+
+        function updateRowGrade(inputEl, matkulKey, idx, field) {
+            let val = parseFloat(inputEl.value) || 0;
+            let allGrades = JSON.parse(localStorage.getItem('master_grades')) || sampleGrades;
+
+            if (allGrades[matkulKey] && allGrades[matkulKey][idx]) {
+                allGrades[matkulKey][idx][field] = val;
+                localStorage.setItem('master_grades', JSON.stringify(allGrades));
+
+                let st = allGrades[matkulKey][idx];
+                let rekap = calculateFinalGrade(st.h, st.t, st.uts, st.uas);
+                let letter = getGradeLetter(rekap);
+
+                document.getElementById(`rekap_${idx}`).innerText = rekap.toFixed(2);
+                let badge = document.getElementById(`badge_${idx}`);
+                badge.innerText = letter;
+                badge.className = `badge-grade grade-${letter}`;
+            }
+        }
+
+        function populateStudentKrsSelects() {
+            const selGanjil = document.getElementById('selectStudentKrsGanjil');
+            const selGenap = document.getElementById('selectStudentKrsGenap');
+            selGanjil.innerHTML = '';
+            selGenap.innerHTML = '';
+
+            let students = JSON.parse(localStorage.getItem('master_students')) || [];
+            students.forEach(s => {
+                selGanjil.innerHTML += `<option value="${s.nim}">${s.nama} (${s.nim})</option>`;
+                selGenap.innerHTML += `<option value="${s.nim}">${s.nama} (${s.nim})</option>`;
+            });
+        }
+
+        function changeKrsStudent(tipe) {
+            let nim = (tipe === 'ganjil') ? document.getElementById('selectStudentKrsGanjil').value : document.getElementById('selectStudentKrsGenap').value;
+            let students = JSON.parse(localStorage.getItem('master_students')) || [];
+            let found = students.find(s => s.nim === nim);
+            if (found) {
+                if (tipe === 'ganjil') {
+                    renderKrsView('ganjil', found.nim, found.nama);
+                } else {
+                    renderKrsView('genap', found.nim, found.nama);
+                }
+            }
+        }
+
+        function renderKrsView(tipe, nim, nama) {
+            if (tipe === 'ganjil') {
+                document.getElementById('krsNamaGanjil').innerText = nama;
+                document.getElementById('krsNimGanjil').innerText = nim;
+                document.getElementById('krsSignNamaGanjil').innerText = nama;
+                document.getElementById('krsSignNimGanjil').innerText = "NPM. " + nim;
+
+                renderKrsTableSemester(1, 'tbodyKrsSem1', 'ganjil');
+                renderKrsTableSemester(3, 'tbodyKrsSem3', 'ganjil');
+                renderKrsTableSemester(5, 'tbodyKrsSem5', 'ganjil');
+                renderKrsTableSemester(7, 'tbodyKrsSem7', 'ganjil');
+                calcKrsSks('ganjil');
+            } else {
+                document.getElementById('krsNamaGenap').innerText = nama;
+                document.getElementById('krsNimGenap').innerText = nim;
+                document.getElementById('krsSignNamaGenap').innerText = nama;
+                document.getElementById('krsSignNimGenap').innerText = "NPM. " + nim;
+
+                renderKrsTableSemester(2, 'tbodyKrsSem2', 'genap');
+                renderKrsTableSemester(4, 'tbodyKrsSem4', 'genap');
+                renderKrsTableSemester(6, 'tbodyKrsSem6', 'genap');
+                renderKrsTableSemester(8, 'tbodyKrsSem8', 'genap');
+                calcKrsSks('genap');
+            }
+        }
+
+        function renderKrsTableSemester(semNum, tbodyId, tipe) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+
+            let matkuls = kurikulumData.filter(m => m.sem === semNum);
+            matkuls.forEach((m, idx) => {
+                let isChecked = (semNum === 1 || semNum === 2) ? 'checked' : '';
+                tbody.innerHTML += `<tr>
+                    <td><input type="checkbox" class="krs-cb-${tipe}" data-sks="${m.sks}" ${isChecked} onchange="calcKrsSks('${tipe}')"></td>
+                    <td class="text-left">${m.nama}</td>
+                    <td>B</td>
+                    <td><code>${m.kode}</code></td>
+                    <td><strong>${m.sks}</strong></td>
+                </tr>`;
+            });
+        }
+
+        function calcKrsSks(tipe) {
+            let checkboxes = document.querySelectorAll(`.krs-cb-${tipe}:checked`);
+            let total = 0;
+            checkboxes.forEach(cb => {
+                total += parseInt(cb.getAttribute('data-sks') || '0');
+            });
+
+            if (tipe === 'ganjil') {
+                document.getElementById('krsTotalSksGanjil').innerText = total + " SKS";
+            } else {
+                document.getElementById('krsTotalSksGenap').innerText = total + " SKS";
+            }
+        }
+
+        function openShareModal() {
+            const currentUrl = window.location.href;
+            document.getElementById('appShareUrl').value = currentUrl;
+            const qrContainer = document.getElementById('qrcodeContainer');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, { text: currentUrl, width: 160, height: 160, colorDark : "#1e293b", colorLight : "#ffffff" });
+            document.getElementById('shareModal').style.display = 'flex';
+        }
+
+        function closeShareModal() { document.getElementById('shareModal').style.display = 'none'; }
+        function copyAppUrl() {
+            const urlInput = document.getElementById('appShareUrl');
+            urlInput.select();
+            navigator.clipboard.writeText(urlInput.value).then(() => alert("Tautan disalin!")).catch(() => alert("Gagal menyalin."));
+        }
+        function nativeShareApp() {
+            if (navigator.share) {
+                navigator.share({ title: 'Sistem Akademik & Penilaian IAI As-Siddiq', text: 'Aplikasi Presensi, Penilaian, Jurnal & KRS Online', url: window.location.href });
+            } else { copyAppUrl(); }
+        }
+
+        function populateMatkulDropdowns() {
+            const selectAbsen = document.getElementById('matkulSelect');
+            const selectJurnal = document.getElementById('jurnalMatkul');
+            selectAbsen.innerHTML = ''; selectJurnal.innerHTML = '';
+            kurikulumData.forEach(item => {
+                let optText = `${item.nama} (${item.sks} SKS - Sem ${item.sem})`;
+                selectAbsen.innerHTML += `<option value="${optText}">${optText}</option>`;
+                selectJurnal.innerHTML += `<option value="${optText}">${optText}</option>`;
+            });
+        }
+
+        function populateDosenJurnalDropdown() {
+            const selectDosen = document.getElementById('jurnalNamaDosen');
+            selectDosen.innerHTML = '';
+            let lecturers = JSON.parse(localStorage.getItem('master_lecturers')) || [];
+            lecturers.forEach(l => {
+                selectDosen.innerHTML += `<option value="${l.nama}">${l.nama} (NIDN: ${l.nidn})</option>`;
+            });
+        }
+
+        function renderDosenListTable() {
+            const tbody = document.getElementById('dosenListTableBody');
+            const prodiFilter = document.getElementById('filterProdiDosen').value;
+            const searchKeyword = document.getElementById('searchDosenInput').value.toLowerCase().trim();
+            tbody.innerHTML = '';
+            let lecturers = JSON.parse(localStorage.getItem('master_lecturers')) || [];
+            let filtered = lecturers.filter(item => {
+                let matchProdi = (prodiFilter === 'ALL') || (item.prodi === prodiFilter);
+                let matchSearch = item.nama.toLowerCase().includes(searchKeyword) || item.nidn.includes(searchKeyword);
+                return matchProdi && matchSearch;
+            });
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="padding:1.5rem; color:#64748b;">Data dosen tidak ditemukan.</td></tr>`;
+                return;
+            }
+            filtered.forEach((d, idx) => {
+                tbody.innerHTML += `<tr>
+                    <td>${idx + 1}</td>
+                    <td class="text-left"><strong>${d.nama}</strong></td>
+                    <td><code>${d.nidn}</code></td>
+                    <td><span class="badge-jabatan">${d.jabatan}</span></td>
+                    <td class="text-left">${d.prodi}</td>
+                </tr>`;
+            });
+        }
+
+        function renderKurikulumTable() {
+            const tbody = document.getElementById('kurikulumTableBody');
+            const tfoot = document.getElementById('kurikulumTableFoot');
+            const semFilter = document.getElementById('filterSemester').value;
+            const searchKeyword = document.getElementById('searchMatkulInput').value.toLowerCase().trim();
+            tbody.innerHTML = '';
+            let filtered = kurikulumData.filter(item => {
+                let matchSem = (semFilter === 'ALL') || (item.sem.toString() === semFilter);
+                let matchSearch = item.nama.toLowerCase().includes(searchKeyword) || item.kode.toLowerCase().includes(searchKeyword);
+                return matchSem && matchSearch;
+            });
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="padding:1.5rem; color:#64748b;">Mata kuliah tidak ditemukan.</td></tr>`;
+                tfoot.innerHTML = ''; return;
+            }
+            let totalSKS = 0;
+            filtered.forEach((m, idx) => {
+                totalSKS += m.sks;
+                let badgeClass = (m.kat === 'MK Institusi') ? 'badge-institusi' : (m.kat === 'Pilihan' ? 'badge-pilihan' : 'badge-inti');
+                tbody.innerHTML += `<tr>
+                    <td>${idx + 1}</td><td><strong>Semester ${m.sem}</strong></td><td><code>${m.kode}</code></td>
+                    <td class="text-left"><strong>${m.nama}</strong></td><td><strong>${m.sks}</strong></td>
+                    <td><span class="badge-mk ${badgeClass}">${m.kat}</span></td><td>${m.sifat}</td>
+                </tr>`;
+            });
+            tfoot.innerHTML = `<tr style="background:#f1f5f9; font-weight:bold;"><td colspan="4" style="text-align:right; padding:0.8rem;">TOTAL SKS DITAMPILKAN:</td><td style="color:#10b981; font-size:1rem;">${totalSKS} SKS</td><td colspan="2"></td></tr>`;
+        }
+
+        function initCanvases() {
+            sigPadMhs = new SignaturePad(document.getElementById('signatureCanvas'), { backgroundColor: 'rgba(255, 255, 255, 0)', penColor: 'rgb(0, 0, 128)' });
+            sigPadDosen = new SignaturePad(document.getElementById('jurnalSigDosenCanvas'), { backgroundColor: 'rgba(255, 255, 255, 0)', penColor: 'rgb(0, 0, 128)' });
+            sigPadKomti = new SignaturePad(document.getElementById('jurnalSigKomtiCanvas'), { backgroundColor: 'rgba(255, 255, 255, 0)', penColor: 'rgb(0, 0, 128)' });
+            resizeCanvases();
+        }
+
+        function resizeCanvases() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            [
+                { canvas: document.getElementById('signatureCanvas'), pad: sigPadMhs },
+                { canvas: document.getElementById('jurnalSigDosenCanvas'), pad: sigPadDosen },
+                { canvas: document.getElementById('jurnalSigKomtiCanvas'), pad: sigPadKomti }
+            ].forEach(item => {
+                if (item.canvas && item.canvas.offsetWidth > 0) {
+                    item.canvas.width = item.canvas.offsetWidth * ratio;
+                    item.canvas.height = item.canvas.offsetHeight * ratio;
+                    item.canvas.getContext("2d").scale(ratio, ratio);
+                    if (item.pad) item.pad.clear();
+                }
+            });
+        }
+
+        function clearSignature(type) {
+            if (type === 'mhs' && sigPadMhs) sigPadMhs.clear();
+            if (type === 'dosen' && sigPadDosen) sigPadDosen.clear();
+            if (type === 'komti' && sigPadKomti) sigPadKomti.clear();
+        }
+
+        /* Auth */
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const userInput = document.getElementById('loginUser').value.trim();
+            const passInput = document.getElementById('loginPass').value.trim();
+
+            if (userInput === 'admin' && passInput === 'admin123') {
+                currentUser = { role: 'admin', username: 'Kaprodi Admin', nim: '', nama: 'Afifuddin Kadir, S.EI.,M.E' };
+                sessionStorage.setItem('active_session', JSON.stringify(currentUser));
+                showApp(); return;
+            }
+
+            const lecturers = JSON.parse(localStorage.getItem('master_lecturers')) || [];
+            const foundLecturer = lecturers.find(l => (l.username === userInput || l.nidn === userInput) && l.pass === passInput);
+            if (foundLecturer) {
+                currentUser = { role: 'dosen', username: foundLecturer.username, nim: '', nama: foundLecturer.nama, nidn: foundLecturer.nidn };
+                sessionStorage.setItem('active_session', JSON.stringify(currentUser));
+                showApp(); return;
+            }
+
+            const students = JSON.parse(localStorage.getItem('master_students')) || [];
+            const foundMhs = students.find(s => s.nim === userInput && s.pass === passInput);
+            if (foundMhs) {
+                currentUser = { role: 'mahasiswa', username: foundMhs.nim, nim: foundMhs.nim, nama: foundMhs.nama };
+                sessionStorage.setItem('active_session', JSON.stringify(currentUser));
+                showApp();
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+            }
+        });
+
+        function checkSession() {
+            const sessionData = sessionStorage.getItem('active_session');
+            if (sessionData) { currentUser = JSON.parse(sessionData); showApp(); }
+            else { document.getElementById('loginOverlay').style.display = 'flex'; document.getElementById('appContent').style.display = 'none'; }
+        }
+
+        function logout() { sessionStorage.removeItem('active_session'); currentUser = null; location.reload(); }
+
+        function showApp() {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('appContent').style.display = 'flex';
+            document.getElementById('loginError').style.display = 'none';
+
+            document.getElementById('loggedInUserDisplay').innerText = currentUser.nama;
+            let roleText = (currentUser.role === 'admin') ? 'Kaprodi / Admin' : ((currentUser.role === 'dosen') ? 'Dosen Pengampu' : 'Mahasiswa');
+            document.getElementById('userRoleDisplay').innerText = roleText;
+
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = currentUser.role === 'admin' ? '' : 'none');
+            document.querySelectorAll('.lecturer-or-admin').forEach(el => el.style.display = (currentUser.role === 'admin' || currentUser.role === 'dosen') ? '' : 'none');
+
+            if (currentUser.role === 'mahasiswa') {
+                document.getElementById('npm').value = currentUser.nim;
+                document.getElementById('nama').value = currentUser.nama;
+                renderKrsView('ganjil', currentUser.nim, currentUser.nama);
+                renderKrsView('genap', currentUser.nim, currentUser.nama);
+            } else {
+                let firstMhs = (JSON.parse(localStorage.getItem('master_students')) || [])[0];
+                if (firstMhs) {
+                    renderKrsView('ganjil', firstMhs.nim, firstMhs.nama);
+                    renderKrsView('genap', firstMhs.nim, firstMhs.nama);
+                }
+            }
+
+            switchTab('krsGanjil');
+            loadMatkulTable();
+            loadUsersTable();
+            loadJurnalData();
+            renderNilaiTable();
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            if (tabName === 'krsGanjil') {
+                document.getElementById('tabKrsGanjil').classList.add('active');
+                document.getElementById('tabBtnKrsGanjil').classList.add('active');
+            } else if (tabName === 'krsGenap') {
+                document.getElementById('tabKrsGenap').classList.add('active');
+                document.getElementById('tabBtnKrsGenap').classList.add('active');
+            } else if (tabName === 'nilai') {
+                document.getElementById('tabNilai').classList.add('active');
+                document.getElementById('tabBtnNilai').classList.add('active');
+                renderNilaiTable();
+            } else if (tabName === 'dosenMenu') {
+                document.getElementById('tabDosenMenu').classList.add('active');
+                document.getElementById('tabBtnDosen').classList.add('active');
+                renderDosenListTable();
+            } else if (tabName === 'matkul') {
+                document.getElementById('tabMatkul').classList.add('active');
+                document.getElementById('tabBtnMatkul').classList.add('active');
+                renderKurikulumTable();
+            } else if (tabName === 'absen') {
+                document.getElementById('tabAbsen').classList.add('active');
+                document.getElementById('tabBtnAbsen').classList.add('active');
+                setTimeout(resizeCanvases, 150);
+            } else if (tabName === 'data') {
+                document.getElementById('tabData').classList.add('active');
+                document.getElementById('tabBtnData').classList.add('active');
+                loadMatkulTable();
+            } else if (tabName === 'jurnal') {
+                document.getElementById('tabJurnal').classList.add('active');
+                document.getElementById('tabBtnJurnal').classList.add('active');
+                setTimeout(resizeCanvases, 150);
+                loadJurnalData();
+            } else if (tabName === 'kelola' && currentUser.role === 'admin') {
+                document.getElementById('tabKelola').classList.add('active');
+                document.getElementById('tabBtnKelola').classList.add('active');
+                loadUsersTable();
+            }
+        }
+
+        /* Presensi & Jurnal Handlers */
+        document.getElementById('attendanceForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (sigPadMhs.isEmpty()) { alert("Harap sertakan tanda tangan digital!"); return; }
+            const record = { id: Date.now(), nim: document.getElementById('npm').value, nama: document.getElementById('nama').value, matkul: document.getElementById('matkulSelect').value, pertemuan: document.getElementById('pertemuanNum').value, status: document.getElementById('status').value, sigImg: sigPadMhs.toDataURL() };
+            let records = JSON.parse(localStorage.getItem('absensi_records')) || [];
+            records = records.filter(r => !(r.nim === record.nim && r.pertemuan === record.pertemuan));
+            records.push(record); localStorage.setItem('absensi_records', JSON.stringify(records));
+            alert('Presensi berhasil dikirim!'); clearSignature('mhs'); switchTab('data');
+        });
+
+        function loadMatkulTable() {
+            const tbody = document.getElementById('tableBodyMatkul');
+            tbody.innerHTML = '';
+            let students = JSON.parse(localStorage.getItem('master_students')) || [];
+            let records = JSON.parse(localStorage.getItem('absensi_records')) || [];
+            const pertemuans = ['1','2','3','4','5','6','7','8','UTS','9','10','11','12','13','14','16','UAS'];
+            students.forEach((s, idx) => {
+                let row = `<tr><td>${idx + 1}</td><td>${s.nim}</td><td class="text-left">${s.nama}</td>`;
+                pertemuans.forEach(p => {
+                    let found = records.find(r => r.nim === s.nim && r.pertemuan === p);
+                    row += found ? `<td><span class="badge badge-${found.status}">${found.status[0]}</span></td>` : `<td><span style="color:#94a3b8;">-</span></td>`;
+                });
+                row += `<td>-</td></tr>`; tbody.innerHTML += row;
+            });
+        }
+
+        document.getElementById('jurnalForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (sigPadDosen.isEmpty()) { alert("Harap sertakan paraf digital dosen!"); return; }
+            const record = { id: Date.now(), dosen: document.getElementById('jurnalNamaDosen').value, matkul: document.getElementById('jurnalMatkul').value, thn: document.getElementById('jurnalThnAkademik').value, pertemuan: document.getElementById('jurnalPertemuan').value, materi: document.getElementById('jurnalMateri').value, sigDosen: sigPadDosen.toDataURL(), sigKomti: sigPadKomti.isEmpty() ? '' : sigPadKomti.toDataURL() };
+            let jurnals = JSON.parse(localStorage.getItem('jurnal_records')) || [];
+            jurnals.push(record); localStorage.setItem('jurnal_records', JSON.stringify(jurnals));
+            alert('Jurnal berhasil disimpan!'); clearSignature('dosen'); clearSignature('komti'); document.getElementById('jurnalMateri').value = ''; loadJurnalData();
+        });
+
+        function loadJurnalData() {
+            const tbody = document.getElementById('jurnalTableBody'); tbody.innerHTML = '';
+            let jurnals = JSON.parse(localStorage.getItem('jurnal_records')) || [];
+            jurnals.reverse().forEach(j => {
+                tbody.innerHTML += `<tr><td class="text-left"><strong>${j.matkul}</strong><br><small>${j.dosen}</small></td><td>${j.pertemuan}</td><td class="text-left">${j.materi}</td><td><img src="${j.sigDosen}" class="img-ttd"></td><td>${j.sigKomti ? `<img src="${j.sigKomti}" class="img-ttd">` : '-'}</td><td><button class="btn-danger" onclick="deleteJurnal(${j.id})">Hapus</button></td></tr>`;
+            });
+        }
+
+        function deleteJurnal(id) {
+            if (!confirm('Hapus entri jurnal?')) return;
+            let jurnals = JSON.parse(localStorage.getItem('jurnal_records')) || [];
+            jurnals = jurnals.filter(j => j.id !== id);
+            localStorage.setItem('jurnal_records', JSON.stringify(jurnals)); loadJurnalData();
+        }
+
+        /* User Management */
+        document.getElementById('dosenAccountForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('dosenUser').value.trim();
+            const nama = document.getElementById('dosenNama').value.trim();
+            const nidn = document.getElementById('dosenNidn').value.trim();
+            const jabatan = document.getElementById('dosenJabatan').value.trim();
+            const pass = document.getElementById('dosenPass').value.trim();
+            let lecturers = JSON.parse(localStorage.getItem('master_lecturers')) || [];
+            lecturers.push({ username, nama, nidn, jabatan, prodi: 'Ekonomi Syariah', pass });
+            localStorage.setItem('master_lecturers', JSON.stringify(lecturers));
+            document.getElementById('dosenAccountForm').reset();
+            populateDosenJurnalDropdown(); renderDosenListTable(); loadUsersTable(); alert('Dosen berhasil ditambahkan!');
+        });
+
+        document.getElementById('mhsAccountForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nim = document.getElementById('mhsNim').value.trim();
+            const nama = document.getElementById('mhsNama').value.trim();
+            const pass = document.getElementById('mhsPass').value.trim();
+            let students = JSON.parse(localStorage.getItem('master_students')) || [];
+            students.push({ nim, nama, pass });
+            localStorage.setItem('master_students', JSON.stringify(students));
+            document.getElementById('mhsAccountForm').reset();
+            populateStudentKrsSelects(); loadUsersTable(); alert('Mahasiswa berhasil ditambahkan!');
+        });
+
+        function loadUsersTable() {
+            const tbody = document.getElementById('usersTableBody'); tbody.innerHTML = '';
+            let lecturers = JSON.parse(localStorage.getItem('master_lecturers')) || [];
+            let students = JSON.parse(localStorage.getItem('master_students')) || [];
+            lecturers.forEach(l => {
+                tbody.innerHTML += `<tr><td><span style="color:#0284c7;font-weight:bold;">Dosen Pengampu</span></td><td>${l.username}</td><td class="text-left">${l.nama} (NIDN. ${l.nidn})</td><td><code>${l.pass}</code></td><td><button class="btn-danger" onclick="deleteUser('dosen', '${l.username}')">Hapus</button></td></tr>`;
+            });
+            students.forEach(s => {
+                tbody.innerHTML += `<tr><td><span style="color:#10b981;font-weight:bold;">Mahasiswa</span></td><td>${s.nim}</td><td class="text-left">${s.nama}</td><td><code>${s.pass}</code></td><td><button class="btn-danger" onclick="deleteUser('mhs', '${s.nim}')">Hapus</button></td></tr>`;
+            });
+        }
+
+        function deleteUser(type, key) {
+            if (!confirm(`Hapus pengguna ${key}?`)) return;
+            if (type === 'dosen') {
+                let lecturers = JSON.parse(localStorage.getItem('master_lecturers')) || [];
+                lecturers = lecturers.filter(l => l.username !== key);
+                localStorage.setItem('master_lecturers', JSON.stringify(lecturers));
+                populateDosenJurnalDropdown(); renderDosenListTable();
+            } else {
+                let students = JSON.parse(localStorage.getItem('master_students')) || [];
+                students = students.filter(s => s.nim !== key);
+                localStorage.setItem('master_students', JSON.stringify(students));
+                populateStudentKrsSelects();
+            }
+            loadUsersTable();
+        }
+
+        /* Export Penilaian */
+        function exportNilaiExcel() {
+            const matkulKey = document.getElementById('nilaiSelectMatkul').value;
+            const wb = XLSX.utils.book_new();
+            const wsData = [
+                ["DAFTAR NILAI PERKULIAHAN"],
+                ["INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA"],
+                ["PROGRAM STUDI EKONOMI SYARIAH"],
+                [],
+                [`Mata Kuliah : ${matkulKey}`],
+                [`Semester : ${document.getElementById('nilaiMetaSemester').innerText}`],
+                ["SKS : 3 | Prodi : Ekonomi Syariah"],
+                ["Dosen : Afifuddin Kadir, S.EI.,M.E (NIDN. 2104079103)"],
+                [],
+                ["NO", "NIM", "NAMA MAHASISWA", "KEHADIRAN (10%)", "TUGAS (30%)", "UTS (30%)", "UAS (30%)", "REKAP NILAI AKHIR", "NILAI HURUF"]
+            ];
+
+            let allGrades = JSON.parse(localStorage.getItem('master_grades')) || sampleGrades;
+            let items = allGrades[matkulKey] || [];
+            items.forEach((st, idx) => {
+                let rekap = calculateFinalGrade(st.h, st.t, st.uts, st.uas);
+                let letter = getGradeLetter(rekap);
+                wsData.push([idx + 1, st.nim, st.nama, st.h, st.t, st.uts, st.uas, rekap.toFixed(2), letter]);
+            });
+
+            wsData.push([]);
+            wsData.push(["", "", "", "", "", "", "", "Ternate, 11 Februari 2026"]);
+            wsData.push(["", "", "", "", "", "", "", "Dosen Pengampuh Mata Kuliah,"]);
+            wsData.push([]);
+            wsData.push(["", "", "", "", "", "", "", "Afifuddin Kadir, S.EI.,M.E"]);
+            wsData.push(["", "", "", "", "", "", "", "NIDN. 2104079103"]);
+
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Daftar Nilai");
+            XLSX.writeFile(wb, `Daftar_Nilai_${matkulKey.replace(/ /g, '_')}.xlsx`);
+        }
+
+        function exportNilaiPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const matkulKey = document.getElementById('nilaiSelectMatkul').value;
+
+            doc.setFontSize(11);
+            doc.text("DAFTAR NILAI PERKULIAHAN", 105, 12, { align: 'center' });
+            doc.setFontSize(10);
+            doc.text("INSTITUT AGAMA ISLAM AS-SIDDIQ (IAI) KIE RAHA MALUKU UTARA", 105, 17, { align: 'center' });
+            doc.setFontSize(9);
+            doc.text(`Mata Kuliah: ${matkulKey} | Prodi: Ekonomi Syariah`, 105, 22, { align: 'center' });
+
+            doc.setFontSize(8);
+            doc.text(`Dosen: Afifuddin Kadir, S.EI.,M.E (NIDN. 2104079103)`, 14, 28);
+            doc.text(`Semester: ${document.getElementById('nilaiMetaSemester').innerText}`, 140, 28);
+
+            let allGrades = JSON.parse(localStorage.getItem('master_grades')) || sampleGrades;
+            let items = allGrades[matkulKey] || [];
+            let head = [["NO", "NIM", "NAMA MAHASISWA", "KEHADIRAN\n10%", "TUGAS\n30%", "UTS\n30%", "UAS\n30%", "REKAP NILAI\nAKHIR", "NILAI\nHURUF"]];
+            let body = items.map((st, idx) => {
+                let rekap = calculateFinalGrade(st.h, st.t, st.uts, st.uas);
+                let letter = getGradeLetter(rekap);
+                return [idx + 1, st.nim, st.nama, st.h, st.t, st.uts, st.uas, rekap.toFixed(2), letter];
+            });
+
+            doc.autoTable({
+                startY: 32,
+                head: head,
+                body: body,
+                styles: { fontSize: 8, halign: 'center' },
+                columnStyles: { 2: { halign: 'left' } }
+            });
+
+            let finalY = doc.lastAutoTable.finalY + 12;
+            doc.text("Ternate, 11 Februari 2026", 140, finalY);
+            doc.text("Dosen Pengampuh Mata Kuliah,", 140, finalY + 4);
+            doc.text("Afifuddin Kadir, S.EI.,M.E", 140, finalY + 20);
+            doc.text("NIDN. 2104079103", 140, finalY + 24);
+
+            doc.save(`Daftar_Nilai_${matkulKey.replace(/ /g, '_')}.pdf`);
+        }
+
+        function exportNilaiWord() {
+            const matkulKey = document.getElementById('nilaiSelectMatkul').value;
+            let allGrades = JSON.parse(localStorage.getItem('master_grades')) || sampleGrades;
+            let items = allGrades[matkulKey] || [];
+
+            let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head><meta charset='utf-8'><title>Daftar Nilai Perkuliahan</title>
+            <style>body { font-family: Arial; font-size: 10pt; } table { border-collapse: collapse; width: 100%; margin-top: 10px; } th, td { border: 1px solid black; padding: 5px; text-align: center; font-size: 9pt; } .text-left { text-align: left; }</style>
+            </head><body>
+            <h3 style="text-align:center;margin:0;">DAFTAR NILAI PERKULIAHAN</h3>
+            <h4 style="text-align:center;margin:0;">INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA</h4><hr>
+            <p><b>Mata Kuliah:</b> ${matkulKey}<br><b>Semester:</b> ${document.getElementById('nilaiMetaSemester').innerText}<br><b>SKS / Prodi:</b> 3 / Ekonomi Syariah<br><b>Dosen:</b> Afifuddin Kadir, S.EI.,M.E</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th rowspan="2">NO</th><th rowspan="2">NIM</th><th rowspan="2">NAMA MAHASISWA</th><th colspan="4">RUBRIK PENILAIAN</th><th rowspan="2">REKAP NILAI AKHIR</th><th rowspan="2">NILAI HURUF</th>
+                    </tr>
+                    <tr><th>KEHADIRAN (10%)</th><th>TUGAS (30%)</th><th>UTS (30%)</th><th>UAS (30%)</th></tr>
+                </thead>
+                <tbody>`;
+            items.forEach((st, idx) => {
+                let rekap = calculateFinalGrade(st.h, st.t, st.uts, st.uas);
+                let letter = getGradeLetter(rekap);
+                html += `<tr><td>${idx + 1}</td><td>${st.nim}</td><td class="text-left">${st.nama}</td><td>${st.h}</td><td>${st.t}</td><td>${st.uts}</td><td>${st.uas}</td><td><b>${rekap.toFixed(2)}</b></td><td><b>${letter}</b></td></tr>`;
+            });
+            html += `</tbody></table>
+            <table style="border:none;margin-top:30px;"><tr style="border:none;">
+                <td style="border:none;width:50%;"></td>
+                <td style="border:none;width:50%;text-align:center;">Ternate, 11 Februari 2026<br>Dosen Pengampuh Mata Kuliah,<br><br><br><br><b>Afifuddin Kadir, S.EI.,M.E</b><br>NIDN. 2104079103</td>
+            </tr></table></body></html>`;
+
+            const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `Daftar_Nilai_${matkulKey.replace(/ /g, '_')}.doc`; a.click();
+        }
+
+        /* Export KRS */
+        function exportKRSExcel(tipe) {
+            const isGanjil = (tipe === 'ganjil');
+            const semesterTitle = isGanjil ? "SEMESTER GANJIL 2026/2027" : "SEMESTER GENAP 2025/2026";
+            const namaMhs = isGanjil ? document.getElementById('krsNamaGanjil').innerText : document.getElementById('krsNamaGenap').innerText;
+            const nimMhs = isGanjil ? document.getElementById('krsNimGanjil').innerText : document.getElementById('krsNimGenap').innerText;
+            const totalSks = isGanjil ? document.getElementById('krsTotalSksGanjil').innerText : document.getElementById('krsTotalSksGenap').innerText;
+
+            const wb = XLSX.utils.book_new();
+            const wsData = [
+                ["", "", "", "", "INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA"],
+                ["", "", "", "", "KARTU RENCANA STUDI (KRS)"],
+                ["", "", "", "", `PROGRAM STUDI EKONOMI SYARIAH - ${semesterTitle}`],
+                [],
+                ["A. Nama Mahasiswa", `: ${namaMhs}`, "", "", "", "", "C. IP Komulatif Semester Lalu", ": 3.50"],
+                ["B. N P M", `: ${nimMhs}`, "", "", "", "", "D. Jumlah SKS Direncanakan Semester Ini", `: ${totalSks}`],
+                ["", "", "", "", "", "", "E. Jumlah SKS Dicapai s/d Semester Lalu", ": 110"],
+                [],
+                ["Yang dikontrak", "MATA KULIAH", "B/UP", "KODE", "SKS", "", "Yang dikontrak", "MATA KULIAH", "B/UP", "KODE", "SKS"]
+            ];
+
+            let semLeft = isGanjil ? [1, 5] : [2, 6];
+            let semRight = isGanjil ? [3, 7] : [4, 8];
+
+            wsData.push([`SEMESTER ${semLeft[0]}`, "", "", "", "", "", `SEMESTER ${semRight[0]}`, "", "", "", ""]);
+
+            let matkulsL1 = kurikulumData.filter(m => m.sem === semLeft[0]);
+            let matkulsR1 = kurikulumData.filter(m => m.sem === semRight[0]);
+            let maxLen1 = Math.max(matkulsL1.length, matkulsR1.length);
+
+            for (let i = 0; i < maxLen1; i++) {
+                let l = matkulsL1[i]; let r = matkulsR1[i];
+                wsData.push([
+                    l ? "[X]" : "", l ? l.nama : "", l ? "B" : "", l ? l.kode : "", l ? l.sks : "", "",
+                    r ? "[X]" : "", r ? r.nama : "", r ? "B" : "", r ? r.kode : "", r ? r.sks : ""
+                ]);
+            }
+
+            wsData.push([`SEMESTER ${semLeft[1]}`, "", "", "", "", "", `SEMESTER ${semRight[1]}`, "", "", "", ""]);
+
+            let matkulsL2 = kurikulumData.filter(m => m.sem === semLeft[1]);
+            let matkulsR2 = kurikulumData.filter(m => m.sem === semRight[1]);
+            let maxLen2 = Math.max(matkulsL2.length, matkulsR2.length);
+
+            for (let i = 0; i < maxLen2; i++) {
+                let l = matkulsL2[i]; let r = matkulsR2[i];
+                wsData.push([
+                    l ? "[X]" : "", l ? l.nama : "", l ? "B" : "", l ? l.kode : "", l ? l.sks : "", "",
+                    r ? "[X]" : "", r ? r.nama : "", r ? "B" : "", r ? r.kode : "", r ? r.sks : ""
+                ]);
+            }
+
+            wsData.push([]);
+            wsData.push(["Ketua Prodi,", "", "", "", "Penasehat Akademik,", "", "", "", "Ternate, 11 Februari 2026"]);
+            wsData.push(["", "", "", "", "", "", "", "", "Mahasiswa,"]);
+            wsData.push([]);
+            wsData.push(["Afifuddin Kadir, M.E", "", "", "", "Juma Luange, M.Si", "", "", "", namaMhs]);
+            wsData.push(["NIDN. 2104079103", "", "", "", "NIDN. 2101107502", "", "", "", `NPM. ${nimMhs}`]);
+
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, `KRS ${tipe.toUpperCase()}`);
+            XLSX.writeFile(wb, `KRS_Ekonomi_Syariah_${tipe.toUpperCase()}.xlsx`);
+        }
+
+        function exportKRSPDF(tipe) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const isGanjil = (tipe === 'ganjil');
+            const semesterTitle = isGanjil ? "SEMESTER GANJIL 2026/2027" : "SEMESTER GENAP 2025/2026";
+            const namaMhs = isGanjil ? document.getElementById('krsNamaGanjil').innerText : document.getElementById('krsNamaGenap').innerText;
+            const nimMhs = isGanjil ? document.getElementById('krsNimGanjil').innerText : document.getElementById('krsNimGenap').innerText;
+            const totalSks = isGanjil ? document.getElementById('krsTotalSksGanjil').innerText : document.getElementById('krsTotalSksGenap').innerText;
+
+            doc.setFontSize(11);
+            doc.text("INSTITUT AGAMA ISLAM AS-SIDDIQ (IAI) KIE RAHA MALUKU UTARA", 105, 12, { align: 'center' });
+            doc.setFontSize(10);
+            doc.text("KARTU RENCANA STUDI (KRS)", 105, 17, { align: 'center' });
+            doc.setFontSize(9);
+            doc.text(`PROGRAM STUDI EKONOMI SYARIAH - ${semesterTitle}`, 105, 22, { align: 'center' });
+
+            doc.setFontSize(8);
+            doc.text(`A. Nama Mahasiswa: ${namaMhs}`, 14, 28);
+            doc.text(`B. NPM: ${nimMhs}`, 14, 32);
+            doc.text(`C. IP Komulatif Lalu: 3.50`, 120, 28);
+            doc.text(`D. SKS Direncanakan: ${totalSks}`, 120, 32);
+
+            let semLeft = isGanjil ? 1 : 2;
+            let matkuls = kurikulumData.filter(m => m.sem === semLeft);
+            let head = [["[X]", "NAMA MATA KULIAH", "B/UP", "KODE", "SKS"]];
+            let body = matkuls.map(m => ["[X]", m.nama, "B", m.kode, m.sks]);
+
+            doc.autoTable({
+                startY: 36,
+                head: head,
+                body: body,
+                styles: { fontSize: 7, halign: 'center' },
+                columnStyles: { 1: { halign: 'left' } }
+            });
+
+            let finalY = doc.lastAutoTable.finalY + 12;
+            doc.text("Ketua Prodi,", 20, finalY);
+            doc.text("Penasehat Akademik,", 90, finalY);
+            doc.text("Ternate, 11 Februari 2026", 150, finalY);
+            doc.text("Mahasiswa,", 150, finalY + 4);
+
+            doc.text("Afifuddin Kadir, M.E", 20, finalY + 18);
+            doc.text("Juma Luange, M.Si", 90, finalY + 18);
+            doc.text(namaMhs, 150, finalY + 18);
+            doc.text(`NPM. ${nimMhs}`, 150, finalY + 22);
+
+            doc.save(`KRS_Ekonomi_Syariah_${tipe.toUpperCase()}.pdf`);
+        }
+
+        function exportKRSWord(tipe) {
+            const isGanjil = (tipe === 'ganjil');
+            const docElementId = isGanjil ? 'krsDocGanjil' : 'krsDocGenap';
+            const htmlContent = document.getElementById(docElementId).outerHTML;
+
+            let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head><meta charset='utf-8'><title>KRS Mahasiswa</title>
+            <style>
+                body { font-family: Arial; font-size: 10pt; }
+                table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+                th, td { border: 1px solid black; padding: 4px; text-align: center; font-size: 8pt; }
+                .text-left { text-align: left; }
+                .krs-meta-grid { margin-bottom: 15px; }
+                .krs-sign-grid { margin-top: 30px; text-align: center; }
+            </style>
+            </head><body>${htmlContent}</body></html>`;
+
+            const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `KRS_Ekonomi_Syariah_${tipe.toUpperCase()}.doc`;
+            a.click();
+        }
+
+        /* Export Presensi & Jurnal */
+        function exportAbsenExcel() {
+            const wb = XLSX.utils.book_new();
+            const wsData = [
+                ["INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA"],
+                ["PROGRAM STUDI EKONOMI SYARIAH"],
+                ["ABSEN MAHASISWA"],
+                [],
+                ["Mata Kuliah", ": Manajemen Operasional Bank Syariah"],
+                ["SKS", ": 3"],
+                ["Dosen Pengampu", `: ${currentUser ? currentUser.nama : 'Katarudin Tiakoly, M.E'}`],
+                ["Semester / TA", ": II (Genap) / 2025/2026"],
+                [],
+                ["NO", "NIM", "NAMA MAHASISWA", "1", "2", "3", "4", "5", "6", "7", "8", "UTS", "9", "10", "11", "12", "13", "14", "16", "UAS", "KET"]
+            ];
+            let students = JSON.parse(localStorage.getItem('master_students')) || [];
+            let records = JSON.parse(localStorage.getItem('absensi_records')) || [];
+            const pertemuans = ['1','2','3','4','5','6','7','8','UTS','9','10','11','12','13','14','16','UAS'];
+            students.forEach((s, idx) => {
+                let row = [idx + 1, s.nim, s.nama];
+                pertemuans.forEach(p => {
+                    let found = records.find(r => r.nim === s.nim && r.pertemuan === p);
+                    row.push(found ? found.status[0] : "-");
+                });
+                row.push(""); wsData.push(row);
+            });
+            wsData.push([]);
+            wsData.push(["", "", "Dosen Pengampuh Mata Kuliah", "", "", "", "", "", "", "", "", "", "", "", "Ternate, 11 Februari 2026"]);
+            wsData.push(["", "", "", "", "", "", "", "", "", "", "", "", "", "", "Kaprodi Ekonomi Syariah"]);
+            wsData.push([]);
+            wsData.push(["", "", currentUser ? currentUser.nama : "Katarudin Tiakoly, M.E", "", "", "", "", "", "", "", "", "", "", "", "Afifuddin Kadir, S.EI.,M.E"]);
+            wsData.push(["", "", "NIDN. -", "", "", "", "", "", "", "", "", "", "", "", "NIDN. 2104079103"]);
+
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Absen Mahasiswa");
+            XLSX.writeFile(wb, "Absen_EKS_Genap_2025-2026.xlsx");
+        }
+
+        function exportAbsenPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+            doc.setFontSize(11);
+            doc.text("INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA", 14, 12);
+            doc.setFontSize(10);
+            doc.text("PROGRAM STUDI EKONOMI SYARIAH", 14, 17);
+            doc.setFontSize(9);
+            doc.text(`Mata Kuliah: Manajemen Operasional Bank Syariah | Dosen: ${currentUser ? currentUser.nama : 'Katarudin Tiakoly, M.E'}`, 14, 23);
+
+            let students = JSON.parse(localStorage.getItem('master_students')) || [];
+            let records = JSON.parse(localStorage.getItem('absensi_records')) || [];
+            const pertemuans = ['1','2','3','4','5','6','7','8','UTS','9','10','11','12','13','14','16','UAS'];
+            let head = [["NO", "NIM", "NAMA MAHASISWA", ...pertemuans, "KET"]];
+            let body = [];
+            students.forEach((s, idx) => {
+                let row = [idx + 1, s.nim, s.nama];
+                pertemuans.forEach(p => {
+                    let found = records.find(r => r.nim === s.nim && r.pertemuan === p);
+                    row.push(found ? found.status[0] : "-");
+                });
+                row.push(""); body.push(row);
+            });
+
+            doc.autoTable({ startY: 27, head: head, body: body, styles: { fontSize: 7, halign: 'center' }, columnStyles: { 2: { halign: 'left' } } });
+            let finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(8);
+            doc.text("Dosen Pengampuh Mata Kuliah,", 30, finalY);
+            doc.text("Ternate, 11 Februari 2026", 210, finalY);
+            doc.text("Kaprodi Ekonomi Syariah,", 210, finalY + 4);
+            doc.text(currentUser ? currentUser.nama : "Katarudin Tiakoly, M.E", 30, finalY + 20);
+            doc.text("Afifuddin Kadir, S.EI.,M.E", 210, finalY + 20);
+            doc.text("NIDN. 2104079103", 210, finalY + 24);
+
+            doc.save("Absen_EKS_Genap_2025-2026.pdf");
+        }
+
+        function exportAbsenWord() {
+            let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head><meta charset='utf-8'><title>Absen Mahasiswa</title>
+            <style>body { font-family: Arial; font-size: 11pt; } table { border-collapse: collapse; width: 100%; margin-top: 10px; } th, td { border: 1px solid black; padding: 4px; text-align: center; font-size: 9pt; } .text-left { text-align: left; }</style>
+            </head><body>
+            <h3 style="text-align:center;margin:0;">INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA</h3>
+            <h4 style="text-align:center;margin:0;">PROGRAM STUDI EKONOMI SYARIAH</h4><hr>
+            <p><b>Mata Kuliah:</b> Manajemen Operasional Bank Syariah (3 SKS)<br><b>Dosen Pengampu:</b> ${currentUser ? currentUser.nama : 'Katarudin Tiakoly, M.E'}<br><b>Semester/Tahun Akademik:</b> II (Genap) / 2025/2026</p>`;
+            html += document.getElementById('absenTable').outerHTML;
+            html += `<table style="border:none;margin-top:30px;"><tr style="border:none;">
+                <td style="border:none;width:50%;text-align:left;">Dosen Pengampuh Mata Kuliah,<br><br><br><br><b>${currentUser ? currentUser.nama : 'Katarudin Tiakoly, M.E'}</b></td>
+                <td style="border:none;width:50%;text-align:left;">Ternate, 11 Februari 2026<br>Kaprodi Ekonomi Syariah,<br><br><br><br><b>Afifuddin Kadir, S.EI.,M.E</b><br>NIDN. 2104079103</td>
+            </tr></table></body></html>`;
+
+            const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'Absen_EKS_Genap_2025-2026.doc'; a.click();
+        }
+
+        function exportJurnalExcel() {
+            let jurnals = JSON.parse(localStorage.getItem('jurnal_records')) || [];
+            const wb = XLSX.utils.book_new();
+            const wsData = [
+                ["JURNAL MENGAJAR DOSEN"],
+                ["INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA"],
+                ["PROGRAM STUDI EKONOMI SYARIAH"],
+                [],
+                ["Mata Kuliah & Dosen", "Pertemuan / Hari", "Materi / Pokok Bahasan Perkuliahan", "Paraf Dosen", "Paraf Komti"]
+            ];
+            jurnals.forEach(j => { wsData.push([`${j.matkul} (${j.dosen})`, j.pertemuan, j.materi, "[Terparaf]", "[Terparaf]"]); });
+            wsData.push([]);
+            wsData.push(["", "", "", "Ketua Program Studi Ekonomi Syariah"]);
+            wsData.push([]);
+            wsData.push(["", "", "", "Afifuddin Kadir, S.EI.,M.E"]);
+            wsData.push(["", "", "", "NIDN. 2104079103"]);
+
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "Jurnal Dosen");
+            XLSX.writeFile(wb, "Jurnal_Mengajar_Dosen.xlsx");
+        }
+
+        function exportJurnalPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            doc.setFontSize(11); doc.text("JURNAL MENGAJAR DOSEN", 105, 12, { align: 'center' });
+            doc.setFontSize(10); doc.text("INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA", 105, 17, { align: 'center' });
+            doc.setFontSize(9); doc.text("PROGRAM STUDI EKONOMI SYARIAH", 105, 22, { align: 'center' });
+
+            let jurnals = JSON.parse(localStorage.getItem('jurnal_records')) || [];
+            let head = [["Mata Kuliah & Dosen", "Pertemuan / Hari", "Materi / Pokok Bahasan", "Paraf Dosen", "Paraf Komti"]];
+            let body = jurnals.map(j => [`${j.matkul}\n(${j.dosen})`, j.pertemuan, j.materi, "[Terparaf]", "[Terparaf]"]);
+
+            doc.autoTable({ startY: 28, head: head, body: body, styles: { fontSize: 8 } });
+            let finalY = doc.lastAutoTable.finalY + 15;
+            doc.text("Ketua Program Studi Ekonomi Syariah,", 130, finalY);
+            doc.text("Afifuddin Kadir, S.EI.,M.E", 130, finalY + 20);
+            doc.text("NIDN. 2104079103", 130, finalY + 24);
+
+            doc.save("Jurnal_Mengajar_Dosen.pdf");
+        }
+
+        function exportJurnalWord() {
+            let html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head><meta charset='utf-8'><title>Jurnal Mengajar Dosen</title>
+            <style>body { font-family: Arial; font-size: 11pt; } table { border-collapse: collapse; width: 100%; margin-top: 10px; } th, td { border: 1px solid black; padding: 6px; text-align: left; font-size: 10pt; } th { background-color: #f2f2f2; text-align: center; }</style>
+            </head><body>
+            <h3 style="text-align:center;margin:0;">JURNAL MENGAJAR DOSEN</h3>
+            <h4 style="text-align:center;margin:0;">INSTITUT AGAMA ISLAM (IAI) AS-SIDDIQ KIE RAHA MALUKU UTARA</h4>
+            <p style="text-align:center;font-size:9pt;margin-top:2px;">PROGRAM STUDI EKONOMI SYARIAH</p><hr>`;
+
+            let jurnals = JSON.parse(localStorage.getItem('jurnal_records')) || [];
+            html += `<table><thead><tr><th>Mata Kuliah & Dosen</th><th>Pertemuan / Hari</th><th>Materi / Pokok Bahasan</th><th>Paraf Dosen</th><th>Paraf Komti</th></tr></thead><tbody>`;
+            jurnals.forEach(j => { html += `<tr><td><b>${j.matkul}</b><br>${j.dosen}</td><td>${j.pertemuan}</td><td>${j.materi}</td><td>[Terparaf]</td><td>[Terparaf]</td></tr>`; });
+            html += `</tbody></table>
+            <table style="border:none;margin-top:30px;"><tr style="border:none;">
+                <td style="border:none;width:50%;"></td>
+                <td style="border:none;width:50%;text-align:center;">Ketua Program Studi Ekonomi Syariah,<br><br><br><br><b>Afifuddin Kadir, S.EI.,M.E</b><br>NIDN. 2104079103</td>
+            </tr></table></body></html>`;
+
+            const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'Jurnal_Mengajar_Dosen.doc'; a.click();
+        }
+    </script>
+</body>
+</html>
